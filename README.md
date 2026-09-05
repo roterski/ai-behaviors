@@ -285,6 +285,38 @@ See the output-examples folder for generated python snake games with various fra
 5. Injects the content as ephemeral additional context
 6. The LLM follows the directives until the next prompt with hashtags replaces them
 
+## Clojure API
+
+To apply behaviors to a prompt in your own program rather than through the hook, `ai-behaviors.api` takes a prompt string and returns it with the behavior blocks prepended:
+
+```clojure
+(require '[ai-behaviors.api :as ab])
+
+(ab/augment "fix the login bug #=code #deep")
+;; => "<operating-mode>…</operating-mode>\n<behavior-modifiers>…</behavior-modifiers>\n<framework>…</framework>\n\nfix the login bug #=code #deep"
+
+(ab/behaviors "#Review #challenge")  ; just the blocks, to send as a system message
+(ab/report    "ship it #Code #nope") ; {:tags … :leaves … :missing [#nope] :mode #=code …}
+(ab/explain   "#Frame #Code")        ; what the combination would do, rather than the instruction to do it
+```
+
+Runs on [babashka](https://babashka.org/) — `bb -e "(require '[ai-behaviors.api :as ab]) (println (ab/augment \"#Code #deep\"))"` from the repo root.
+
+**The API is stateless.** This is the one place it differs from the hook: behaviors do not stick across calls. Every prompt carries its own hashtags, and a prompt without hashtags comes back untouched rather than keeping the previous set. Session stickiness lives in the hook's state file, not here.
+
+Each function takes an optional second argument — a context, or overrides to build one with:
+
+```clojure
+(ab/augment "#house-style" {:repo-dir "/path/to/other-behaviors"})
+
+;; building a context shells out to git and walks the behavior directories,
+;; so build it once when you augment more than one prompt
+(let [ctx (ab/context)]
+  (mapv #(ab/augment % ctx) prompts))
+```
+
+A context caches every behavior file it reads, so it will not see edits made to a `behaviors/` directory after it was built — rebuild it to pick them up.
+
 ## Relation to Claude Code's plan mode
 
 I don't use plan mode (I have a hook that disables it). The operating mode pipeline — frame → research → design → spec → code — offers more granular phase control than plan mode's binary plan/implement split. Each mode has an explicit boundary (frame can't research, research can't recommend, design can't commit without your choice, spec can't implement), so you control exactly when the LLM shifts from thinking to building. You can also move up and down the modes, `#=record` it once fully specced etc.
@@ -314,6 +346,9 @@ behaviors/
 │   └── compose        # (composites only) hashtags this composite expands to
 hooks/
 └── inject-behaviors.sh
+src/ai_behaviors/
+├── core.clj           # lookup, composite expansion, rendering
+└── api.clj            # augment / behaviors / report / explain
 ```
 
 ## Custom behaviors
