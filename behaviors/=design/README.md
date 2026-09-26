@@ -25,6 +25,7 @@ The mode provides the interaction loop: Claude proposes, user reacts, repeat unt
 - `#first-principles` — derive candidates from constraints, not patterns
 - `#challenge` — attack each candidate, find breaking cases
 - `#deep` — deep analysis per candidate
+- `#downstream` — second- and third-order consequences per candidate
 - `#wide` — survey adjacent solution spaces
 - `#coherence` — cross-cell consistency in the evaluation grid
 
@@ -35,3 +36,4 @@ The mode provides the interaction loop: Claude proposes, user reacts, repeat unt
 - `#=design #evaluate #challenge` — structured comparison with stress testing
 - `#=design #first-principles` — derive from constraints, not patterns
 - `#=design #wide` — survey adjacent solution spaces
+- `#=design #evaluate #downstream` — compare candidates by their consequences

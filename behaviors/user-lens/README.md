@@ -6,7 +6,7 @@ See through the user's eyes. Their mental model is the primary artifact.
 
 Other stances analyze from the builder's perspective. #user-lens commits to the user's perspective and stays there. Not "consider the user" as a checklist item — inhabit their position. What do they see? What do they expect? What do they already know?
 
-#deep has "vantage points: {user, maintainer, attacker, system}" — but that's a brief survey. User-lens is sustained inhabitation of one perspective.
+#challenge takes the attacker's seat; #user-lens takes the user's. Neither surveys perspectives — each commits to one and stays there.
 
 ## Rules
 
