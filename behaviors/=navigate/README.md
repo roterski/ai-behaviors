@@ -18,6 +18,7 @@ Pair programming with Claude as the navigator. Claude thinks strategically; the 
 ## Pairs well with
 
 - `#deep` — strategic thinking with depth
+- `#downstream` — consequences of the chosen direction
 - `#wide` — consider the bigger picture
 - `#challenge` — catch issues early
 
@@ -26,3 +27,4 @@ Pair programming with Claude as the navigator. Claude thinks strategically; the 
 - `Guide me through this refactor #=navigate` — Claude directs, user codes
 - `#=navigate #deep` — deep strategic guidance
 - `#=navigate #wide` — broad strategic guidance
+- `#=navigate #downstream` — strategic guidance that traces where each step leads

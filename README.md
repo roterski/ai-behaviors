@@ -86,6 +86,7 @@ Each controls an independent axis. Stack freely.
 | Hashtag             | Axis              | Description                                                |
 |---------------------|-------------------|------------------------------------------------------------|
 | `#deep`             | Vertical reach    | Go beneath the surface, ask "why?" three times             |
+| `#downstream`       | Consequence reach | Trace effects to 2nd order, 3rd where it matters — "and then what?" |
 | `#wide`             | Horizontal reach  | Look beyond the immediate, survey adjacent concerns        |
 | `#concrete`         | Referential rigor | Verify every term, reference, quantity resolves concretely |
 | `#coherence`        | Internal consistency | The whole holds together — no contradictions, fits context |
@@ -246,6 +247,7 @@ Modes define the interaction loop. Behaviors fill in the methodology. The same m
 | `#=spec #wbs #obligations #decompose` | Prioritized spec, broken into subproblems        |
 | `#=frame #factor`                     | Scope the problem by identifying its dimensions  |
 | `#=design #evaluate #challenge`       | Uniform evaluation, stress-tested                |
+| `#=design #evaluate #downstream`      | Compare candidates by their consequences         |
 | `#=design #first-principles`          | Derive candidates from constraints, not patterns |
 | `#=test #boundary #deep`              | Exhaustive boundary testing                      |
 | `#=debug #bisect #deep`               | Systematic bisection with deep investigation     |

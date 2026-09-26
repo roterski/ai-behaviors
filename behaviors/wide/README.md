@@ -6,7 +6,7 @@ Look beyond the immediate problem. The question has neighbors — find them.
 
 Default Claude stays focused on exactly what was asked. That's usually helpful, but some problems can't be solved in isolation. A database schema change affects migrations, rollback, downstream consumers, monitoring. A new API endpoint touches auth, rate limiting, documentation, client compatibility. #wide forces the peripheral vision that focused work suppresses.
 
-Orthogonal to #deep: deep goes down (more layers on the same thread), wide goes out (more threads at the same layer). `#deep #wide` together means thorough in every direction.
+Orthogonal to #deep: deep goes down (more layers on the same thread), wide goes out (more threads at the same layer). `#deep #wide` together means thorough in every direction. Orthogonal to #downstream: wide surveys what a change touches now, downstream follows what it causes next.
 
 ## Rules
 

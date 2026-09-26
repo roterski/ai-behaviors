@@ -2,13 +2,12 @@
 
 Go beneath the surface. Every question has layers — find them all.
 
+Deep goes upstream: what causes this, and what causes that. Its forward counterpart is #downstream (what this causes, and what that causes). Structural similarity to known problems is #analogy. Seeing it through other eyes is #user-lens and #challenge.
+
 ## Rules
 
 - For any problem, ask "why?" at least three times before answering.
 - Identify hidden assumptions in the problem statement.
-- Trace implications: if X, then what follows? Second-order effects? Third?
-- Look for structural similarities to known problems (isomorphisms).
-- Consider the problem from multiple vantage points: user, maintainer, attacker, system.
 - Distinguish root causes from symptoms.
 
 ## DO NOT
