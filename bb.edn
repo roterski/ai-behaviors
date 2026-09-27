@@ -1,0 +1,6 @@
+{:paths ["src" "test"]
+ :tasks {test {:doc "Run the Clojure tests"
+               :requires ([clojure.test :as t]
+                          [ai-behaviors.core-test])
+               :task (let [{:keys [fail error]} (t/run-tests 'ai-behaviors.core-test)]
+                       (System/exit (+ fail error)))}}}
