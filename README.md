@@ -37,6 +37,8 @@ If you want to get a quick feel of how this works, then:
 - after a few iterations the LLM will suggest moving to `#Research`. Type it.
 - follow the suggestions
 
+Not sure which mode or behaviors fit? Use `#Route` instead — it asks about the problem and recommends a sequence of modes and behaviors, ending with a hashtag line you can paste.
+
 This is already enough to use this framework. **If you want to start quickly you don't need to read further**. 
 
 ## Catalog
@@ -66,6 +68,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=record`   | Knowledge needs documenting                | capture, not invent        |
 | `#=mentor`   | You want to learn while building           | explain, never just answer |
 | `#=probe`    | You want to think it through yourself      | questions only             |
+| `#=route`    | You don't know which mode or behaviors fit | method, not solutions      |
 
 **Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements.
 
@@ -74,6 +77,8 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 **Pair programming.** drive and navigate are the same interaction with roles swapped — who steers vs who types.
 
 **Learning.** mentor provides knowledge; probe draws out yours.
+
+**Routing.** route recommends which of the above to use, from the catalog of behaviors resolvable in your project. Switch to it mid-session to ask whether the current approach still fits; its recommended line switches you back.
 
 ### Behaviors
 
@@ -199,6 +204,7 @@ Each mode has a capitalized composite that bundles a curated default methodology
 | `#Drive`    | `#=drive`                                          |
 | `#Navigate` | `#=navigate`                                       |
 | `#Record`   | `#=record`                                         |
+| `#Route`    | `#=route`                                          |
 
 Stack behaviors on top: `#Debug #deep`, `#Code #subtract`, `#Frame #factor`.
 
@@ -264,6 +270,8 @@ Modes define the interaction loop. Behaviors fill in the methodology. The same m
 | `#=code #checklist #stop`             | Implement spec items, halt on gaps, track all    |
 | `#=debug #stop`                       | Diagnose bug, halt if cause is architectural     |
 | `#=research #langlang #deep`          | Discover orthogonal principles for a subject     |
+| `#Route`                              | Recommend how to attack the problem              |
+| `#Route #deep`                        | Stuck mid-session — is this the right approach?  |
 
 ## Uninstall
 
@@ -284,8 +292,9 @@ See the output-examples folder for generated python snake games with various fra
 2. Resolves its symlink to find the repo
 3. For each hashtag: if a `compose` file exists, recursively expands the composite to leaf behaviors
 4. Reads `behaviors/<name>/prompt.md` for each leaf behavior (and composite custom text if present)
-5. Injects the content as ephemeral additional context
-6. The LLM follows the directives until the next prompt with hashtags replaces them
+5. If a behavior's directory holds a `catalog` file (as `=route`'s does), appends a `<behavior-catalog>` after its text — one line per behavior resolvable from here (project-local, user-local, repo)
+6. Injects the content as ephemeral additional context
+7. The LLM follows the directives until the next prompt with hashtags replaces them
 
 ## Clojure API
 
@@ -345,7 +354,8 @@ behaviors/
 ├── <behavior>/
 │   ├── README.md      # human docs: what, why, rules, common prompts
 │   ├── prompt.md      # terse text injected into the LLM's context
-│   └── compose        # (composites only) hashtags this composite expands to
+│   ├── compose        # (composites only) hashtags this composite expands to
+│   └── catalog        # (optional, empty) append the behavior catalog to this behavior
 hooks/
 └── inject-behaviors.sh
 src/ai_behaviors/
@@ -388,7 +398,7 @@ Create `.ai-behaviors/<name>/prompt.md` at your project root. Useful for project
 
 Add directly to `behaviors/` in this repo. These are shared — consider contributing upstream.
 
-Custom behaviors follow the same rules: one `prompt.md` with terse directives. Add a `README.md` for your own reference if you like.
+Custom behaviors follow the same rules: one `prompt.md` with terse directives. Add a `README.md` for your own reference if you like. Add an empty `catalog` file if the behavior should see every behavior resolvable from the project — the way `#=route` does to recommend from it.
 
 Q: There's plenty of CLAUDE.md / AGENTS.md files I can use for this, or I can write a skill, why would I use this?
 
