@@ -790,6 +790,107 @@ run_test "mode_transition_suggests_composite_name"
 OUT=$(invoke "#Frame" | context_of)
 assert_contains "$OUT" "#Research" && pass
 
+# === Route catalog ===
+
+echo ""
+echo "Route catalog:"
+
+mkdir -p "$LOCAL_PROJECT/.ai-behaviors/test-catalog-leaf"
+cat > "$LOCAL_PROJECT/.ai-behaviors/test-catalog-leaf/prompt.md" << 'EOT'
+# #test-catalog-leaf — Something Else Entirely
+
+UNIQUE-CATALOG-TAGLINE-XYZ
+Second line never shown.
+EOT
+
+run_test "route_injects_catalog"
+OUT=$(invoke "#Route" | context_of)
+assert_contains "$OUT" "<behavior-catalog>" && \
+  assert_contains "$OUT" "Recommend only from this catalog." && pass
+
+run_test "catalog_inside_operating_mode_after_route"
+OUT=$(invoke "#Route" | context_of)
+BETWEEN="${OUT#*# #=route — Route}"
+BETWEEN="${BETWEEN%%</operating-mode>*}"
+assert_contains "$BETWEEN" "</behavior-catalog>" && pass
+
+run_test "no_catalog_without_marker"
+OUT=$(invoke "#=code #deep" | context_of)
+assert_not_contains "$OUT" "<behavior-catalog>" && pass
+
+run_test "frame_unchanged_by_route"
+OUT=$(invoke "#Frame" | context_of)
+assert_not_contains "$OUT" "<behavior-catalog>" && \
+  assert_contains "$OUT" "⊣ {#Research}" && pass
+
+run_test "catalog_groups_modes_composites_modifiers"
+OUT=$(invoke "#Route" | context_of)
+assert_contains "$OUT" $'## Modes\n#=code — Write production code. Ship working software.' && \
+  assert_contains "$OUT" $'## Composites\n#Code → #=code' && \
+  assert_contains "$OUT" "#Route → #=route #coherence #legible #concise" && \
+  assert_contains "$OUT" "#challenge — Find the flaws. Nothing gets a free pass." && pass
+
+run_test "catalog_prefixes_title_that_differs_from_name"
+OUT=$(invoke "#Route" | context_of)
+assert_contains "$OUT" "#ct — Category Theory: Name the categorical structure." && \
+  assert_contains "$OUT" "#deep — Go beneath the surface." && pass
+
+run_test "catalog_includes_project_local_behaviors"
+OUT=$(invoke "#Route" test-session "$LOCAL_PROJECT" | context_of)
+assert_contains "$OUT" "#test-catalog-leaf — Something Else Entirely: UNIQUE-CATALOG-TAGLINE-XYZ" && \
+  assert_contains "$OUT" "#test-macro → #=code #deep" && \
+  assert_not_contains "$OUT" "Second line never shown." && pass
+
+run_test "catalog_lists_shadowed_behavior_once"
+OUT=$(invoke "#Route" test-session "$LOCAL_PROJECT" | context_of)
+COUNT=$(grep -c '^#deep ' <<< "$OUT" || true)
+assert_eq "$COUNT" "1" && pass
+
+run_test "explain_route_omits_catalog"
+OUT=$(invoke "#EXPLAIN #Route" | context_of)
+assert_contains "$OUT" "<explain-behaviors>" && \
+  assert_not_contains "$OUT" "Recommend only from this catalog." && pass
+
+touch "$LOCAL_PROJECT/.ai-behaviors/test-catalog-leaf/catalog"
+
+run_test "catalog_marker_on_modifier"
+OUT=$(invoke "#=code #test-catalog-leaf" test-session "$LOCAL_PROJECT" | context_of)
+BETWEEN="${OUT#*<behavior-modifiers>}"
+BETWEEN="${BETWEEN%%</behavior-modifiers>*}"
+assert_contains "$BETWEEN" "<behavior-catalog>" && pass
+
+rm "$LOCAL_PROJECT/.ai-behaviors/test-catalog-leaf/catalog"
+
+mkdir -p "$LOCAL_PROJECT/.ai-behaviors/=route"
+cp "$REPO_DIR/behaviors/=route/prompt.md" "$LOCAL_PROJECT/.ai-behaviors/=route/prompt.md"
+
+run_test "shadow_without_marker_drops_catalog"
+OUT=$(invoke "#=route" test-session "$LOCAL_PROJECT" | context_of)
+assert_contains "$OUT" "# #=route — Route" && \
+  assert_not_contains "$OUT" "Recommend only from this catalog." && pass
+
+rm -rf "$LOCAL_PROJECT/.ai-behaviors/=route"
+
+mkdir -p "$LOCAL_PROJECT/.ai-behaviors/test-crlf"
+printf '# #test-crlf — Carriage Return\r\n\r\nCRLF-TAGLINE\r\n' > "$LOCAL_PROJECT/.ai-behaviors/test-crlf/prompt.md"
+
+run_test "catalog_line_from_crlf_prompt"
+OUT=$(invoke "#Route" test-session "$LOCAL_PROJECT" | context_of)
+assert_contains "$OUT" $'\n#test-crlf — Carriage Return: CRLF-TAGLINE\n' && pass
+
+rm -rf "$LOCAL_PROJECT/.ai-behaviors/test-crlf"
+touch "$LOCAL_PROJECT/.ai-behaviors/test-catalog-leaf/catalog"
+
+run_test "catalog_once_when_several_marked"
+OUT=$(invoke "#Route #test-catalog-leaf" test-session "$LOCAL_PROJECT" | context_of)
+COUNT=$(grep -c 'Recommend only from this catalog.' <<< "$OUT" || true)
+BETWEEN="${OUT#*<operating-mode>}"
+BETWEEN="${BETWEEN%%</operating-mode>*}"
+assert_eq "$COUNT" "1" && \
+  assert_contains "$BETWEEN" "Recommend only from this catalog." && pass
+
+rm "$LOCAL_PROJECT/.ai-behaviors/test-catalog-leaf/catalog"
+
 # === Summary ===
 
 echo ""

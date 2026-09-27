@@ -262,6 +262,69 @@
   [ctx name]
   (some? (behavior-file ctx name "compose")))
 
+;; --- Catalog ----------------------------------------------------------------
+
+(def catalog-intro
+  "Recommend only from this catalog. One mode at a time. Composites expand to the tags shown. Modifiers stack freely.")
+
+(defn behavior-names
+  "Every behavior name resolvable from `ctx`, sorted. A name shadowed in an
+  earlier root appears once — `resolve-dir` decides which one answers."
+  [{:keys [roots] :as ctx}]
+  (->> roots
+       (mapcat #(when (fs/directory? %) (fs/list-dir %)))
+       (filter fs/directory?)
+       (map #(str (fs/file-name %)))
+       (remove #(str/starts-with? % "."))
+       distinct
+       (filter #(resolve-dir ctx %))
+       sort
+       vec))
+
+(defn- squash
+  "Letters and digits only, lower-cased — `First Principles` and
+  `first-principles` squash to the same thing."
+  [s]
+  (str/replace (str/lower-case s) #"[^a-z0-9]" ""))
+
+(defn tagline
+  "One-line summary of a leaf behavior: the first non-blank line after its
+  heading, prefixed by the heading's title when the title says more than the
+  name does (`#ct — Category Theory`)."
+  [ctx name]
+  (when-let [text (behavior-file ctx name "prompt.md")]
+    (let [[heading & body] (str/split-lines text)
+          title (second (re-find #" — (.+)$" heading))
+          line (some #(when-not (str/blank? %) (str/trim %)) body)]
+      (cond
+        (and title (not= (squash title) (squash name)) line) (str title ": " line)
+        line line
+        :else title))))
+
+(defn catalog
+  "The `<behavior-catalog>` block: modes, composites and modifiers, one line
+  each."
+  [ctx]
+  (let [entries (for [name (behavior-names ctx)
+                      :let [compose (behavior-file ctx name "compose")]]
+                  {:name name
+                   :group (cond compose :composites
+                                (mode-tag? (str "#" name)) :modes
+                                :else :modifiers)
+                   :line (if compose
+                           (str "#" name " → " (str/join " " (split-tags compose)))
+                           (str "#" name (some->> (tagline ctx name) (str " — "))))})
+        by-group (group-by :group entries)
+        section (fn [heading group]
+                  (when-let [es (seq (by-group group))]
+                    (str "## " heading "\n" (str/join "\n" (map :line es)))))]
+    (str "<behavior-catalog>\n"
+         catalog-intro "\n"
+         (str/join "\n" (keep identity [(section "Modes" :modes)
+                                        (section "Composites" :composites)
+                                        (section "Modifiers" :modifiers)]))
+         "\n</behavior-catalog>")))
+
 ;; --- Rendering --------------------------------------------------------------
 
 (defn behavior-text
@@ -277,11 +340,26 @@
   [{:keys [leaves]}]
   (vec (remove mode-tag? leaves)))
 
+(defn- catalog-carrier
+  "The one leaf an injection appends the catalog to: the first, mode before
+  modifiers, whose directory holds a `catalog` file next to its prompt.md.
+  Marking several behaviors still injects the catalog once."
+  [ctx expansion]
+  (->> (cons (mode-of expansion) (modifiers-of expansion))
+       (filter #(and % (behavior-text ctx %) (behavior-file ctx (tag-name %) "catalog")))
+       first))
+
 (defn injection-context
   "The full behavior injection for an expansion, or nil when it carries nothing."
   [ctx expansion]
-  (let [mode-text (some->> (mode-of expansion) (behavior-text ctx))
-        mod-texts (concat (keep #(behavior-text ctx %) (modifiers-of expansion))
+  (let [carrier (catalog-carrier ctx expansion)
+        injected-text (fn [tag]
+                        (when-let [text (behavior-text ctx tag)]
+                          (if (= tag carrier)
+                            (str text "\n\n" (catalog ctx))
+                            text)))
+        mode-text (some-> (mode-of expansion) injected-text)
+        mod-texts (concat (keep injected-text (modifiers-of expansion))
                           (vals (:customs expansion)))
         mod-text (str/join "\n\n" (remove str/blank? mod-texts))
         blocks (cond-> []

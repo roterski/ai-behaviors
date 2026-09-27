@@ -139,6 +139,74 @@ build_tree() {
   done
 }
 
+# Behavior catalog, appended to any behavior whose dir holds a `catalog` file,
+# so it recommends only real tags.
+# One line per behavior resolvable from here: a leaf's tagline (first non-blank
+# line after its heading, prefixed by the heading title when that says more than
+# the name), or a composite's expansion.
+squash() { tr '[:upper:]' '[:lower:]' <<< "$1" | tr -cd 'a-z0-9'; }
+
+tagline() {
+  local name="$1" file="$2"
+  local heading title="" line
+  heading=$(head -n 1 "$file" | tr -d '\r')
+  [[ "$heading" == *" — "* ]] && title="${heading#* — }"
+  line=$(tail -n +2 "$file" | grep -m 1 -v '^[[:space:]]*$' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//' || true)
+  if [ -n "$title" ] && [ -n "$line" ] && [ "$(squash "$title")" != "$(squash "$name")" ]; then
+    echo "$title: $line"
+  elif [ -n "$line" ]; then
+    echo "$line"
+  else
+    echo "$title"
+  fi
+}
+
+build_catalog() {
+  local names="" root d name dir line summary
+  local modes="" composites="" modifiers=""
+  for root in "$LOCAL_BEHAVIORS_DIR" "$USER_BEHAVIORS_DIR" "$BEHAVIORS_DIR"; do
+    [ -n "$root" ] && [ -d "$root" ] || continue
+    for d in "$root"/*/; do
+      [ -d "$d" ] && names+="$(basename "$d")"$'\n'
+    done
+  done
+  while IFS= read -r name; do
+    [ -z "$name" ] && continue
+    dir=$(resolve_dir "$name")
+    [ -n "$dir" ] || continue
+    if [ -f "$dir/compose" ]; then
+      composites+="#$name → $(tr -s '[:space:]' ' ' < "$dir/compose" | sed 's/^ //; s/ $//')"$'\n'
+      continue
+    fi
+    summary=$(tagline "$name" "$dir/prompt.md")
+    line="#$name${summary:+ — $summary}"
+    if [[ "$name" == "="* ]]; then
+      modes+="$line"$'\n'
+    else
+      modifiers+="$line"$'\n'
+    fi
+  done < <(printf '%s' "$names" | LC_ALL=C sort -u)
+  echo "<behavior-catalog>"
+  echo "Recommend only from this catalog. One mode at a time. Composites expand to the tags shown. Modifiers stack freely."
+  [ -n "$modes" ] && printf '## Modes\n%s' "$modes"
+  [ -n "$composites" ] && printf '## Composites\n%s' "$composites"
+  [ -n "$modifiers" ] && printf '## Modifiers\n%s' "$modifiers"
+  echo "</behavior-catalog>"
+}
+
+# A behavior's injected text: its prompt.md, plus the catalog when it asks for
+# one — once per injection, on the first behavior (mode before modifiers) that does.
+# Sets globals: BEHAVIOR_TEXT, CATALOG_INJECTED
+CATALOG_INJECTED=""
+read_behavior_text() {
+  local dir="$1"
+  BEHAVIOR_TEXT=$(cat "$dir/prompt.md")
+  if [ -f "$dir/catalog" ] && [ -z "$CATALOG_INJECTED" ]; then
+    BEHAVIOR_TEXT+=$'\n\n'"$(build_catalog)"
+    CATALOG_INJECTED=1
+  fi
+}
+
 HASHTAGS=$(grep -oE '(^|[[:space:]])#[=a-zA-Z0-9_-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//' | awk '!seen[$0]++') || true
 
 # State file for persistence across prompts
@@ -362,7 +430,8 @@ MODE_CONTEXT=""
 if [ -n "$MODE_TAG" ]; then
   DIR=$(resolve_dir "$MODE_TAG")
   if [ -n "$DIR" ] && [ -f "$DIR/prompt.md" ]; then
-    MODE_CONTEXT="$(cat "$DIR/prompt.md")"
+    read_behavior_text "$DIR"
+    MODE_CONTEXT="$BEHAVIOR_TEXT"
   fi
 fi
 
@@ -377,7 +446,8 @@ if [ -n "$MOD_TAGS" ]; then
       if [ -n "$MOD_CONTEXT" ]; then
         MOD_CONTEXT+=$'\n\n'
       fi
-      MOD_CONTEXT+="$(cat "$DIR/prompt.md")"
+      read_behavior_text "$DIR"
+      MOD_CONTEXT+="$BEHAVIOR_TEXT"
     fi
   done <<< "$MOD_TAGS"
 fi
