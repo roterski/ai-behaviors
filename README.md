@@ -190,28 +190,28 @@ EOF
 
 Each mode has a capitalized composite that bundles a curated default methodology. Three tiers of usage:
 
-1. `#Debug` — curated default (composite, expands to `#=debug #bisect`)
+1. `#Debug` — curated default (composite, expands to `#=debug #bisect #coherence #scope #legible #concise`)
 2. `#=debug #backward` — explicit methodology choice (override the default)
 3. `#=debug` — bare mode, LLM picks approach
 
-| Composite   | Expands to                                         |
-|-------------|----------------------------------------------------|
-| `#Frame`    | `#=frame #scq`                                     |
-| `#Research` | `#=research #epistemic`                            |
-| `#Design`   | `#=design #evaluate #provenance`                   |
-| `#Collate`  | `#=research #ledger #independence #disagreement-map #checklist #epistemic #legible #concise` |
+| Composite   | Expands to                                                                                          |
+|-------------|-----------------------------------------------------------------------------------------------------|
+| `#Frame`    | `#=frame #scq #coherence #scope #legible #concise`                                                  |
+| `#Research` | `#=research #epistemic #legible #concise`                                                           |
+| `#Design`   | `#=design #evaluate #provenance #coherence #legible #concise`                                       |
+| `#Collate`  | `#=research #ledger #independence #disagreement-map #checklist #epistemic #legible #concise`        |
 | `#Converge` | `#=converge #obligations #evaluate #checklist #independence #minority #coherence #legible #concise` |
-| `#Spec`     | `#=spec #wbs #obligations #epistemic #falsifiable` |
-| `#Code`     | `#=code #contract #name #checklist`                |
-| `#Debug`    | `#=debug #bisect`                                  |
-| `#Review`   | `#=review #triage`                                 |
-| `#Test`     | `#=test #boundary`                                 |
-| `#Mentor`   | `#=mentor #explain-first`                          |
-| `#Probe`    | `#=probe`                                          |
-| `#Drive`    | `#=drive`                                          |
-| `#Navigate` | `#=navigate`                                       |
-| `#Record`   | `#=record`                                         |
-| `#Route`    | `#=route`                                          |
+| `#Spec`     | `#=spec #wbs #obligations #epistemic #falsifiable #scope #legible #concise`                         |
+| `#Code`     | `#=code #contract #name #checklist #scope #legible #concise`                                        |
+| `#Debug`    | `#=debug #bisect #coherence #scope #legible #concise`                                               |
+| `#Review`   | `#=review #triage #coherence #scope #legible #concise`                                              |
+| `#Test`     | `#=test #boundary #legible #concise`                                                                |
+| `#Mentor`   | `#=mentor #explain-first #legible #concise`                                                         |
+| `#Probe`    | `#=probe #legible #concise`                                                                         |
+| `#Drive`    | `#=drive #legible #concise`                                                                         |
+| `#Navigate` | `#=navigate #legible #concise`                                                                      |
+| `#Record`   | `#=record #legible #concise`                                                                        |
+| `#Route`    | `#=route #coherence #legible #concise`                                                              |
 
 Stack behaviors on top: `#Debug #deep`, `#Code #subtract`, `#Frame #factor`.
 
