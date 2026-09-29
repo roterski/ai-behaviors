@@ -58,6 +58,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=frame`    | You need to scope the problem first        | problem, not solutions     |
 | `#=research` | You need facts, not opinions               | facts only                 |
 | `#=design`   | You need to explore solution options        | candidates, not code       |
+| `#=converge` | You have explorations to reduce to one decision | decision, not new options |
 | `#=spec`     | You need a plan or decision                | plans, not code            |
 | `#=code`     | You know what to build                     | requested scope            |
 | `#=debug`    | Something's broken                         | root cause, not symptoms   |
@@ -70,7 +71,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=probe`    | You want to think it through yourself      | questions only             |
 | `#=route`    | You don't know which mode or behaviors fit | method, not solutions      |
 
-**Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements.
+**Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements. When explorations come from several sessions or agents, converge sits between design and spec: `#Collate` reduces them to a neutral ledger, then `#Converge` decides from it in a fresh conversation.
 
 **Evaluation.** review reads and judges; test actively tries to break. Review is a critique; test is an assault.
 
@@ -149,6 +150,10 @@ Each is orthogonal to qualities and to each other. Some pair naturally with spec
 | `#falsifiable`      | Verification          | Every item has a done-condition or falsification-condition |
 | `#boundary`         | Edge case testing     | Boundaries, sequences, environment, concurrency            |
 | `#explain-first`    | Teach by explaining   | Explanation → code → comprehension check cycle             |
+| `#ledger`           | Neutral collation     | Restate explorations into one sourced ledger file, lineage asked |
+| `#independence`     | Correlation control   | Count independent reasons, not agreeing voices             |
+| `#disagreement-map` | Conflict typing       | Factual → Crux, values → user, framing → frame             |
+| `#minority`         | Dissent record        | Overruled positions: strongest form, reason, vindicating signal |
 
 ### Composites
 
@@ -194,6 +199,8 @@ Each mode has a capitalized composite that bundles a curated default methodology
 | `#Frame`    | `#=frame #scq`                                     |
 | `#Research` | `#=research #epistemic`                            |
 | `#Design`   | `#=design #evaluate #provenance`                   |
+| `#Collate`  | `#=research #ledger #independence #disagreement-map #checklist #epistemic #legible #concise` |
+| `#Converge` | `#=converge #obligations #evaluate #checklist #independence #minority #coherence #legible #concise` |
 | `#Spec`     | `#=spec #wbs #obligations #epistemic #falsifiable` |
 | `#Code`     | `#=code #contract #name #checklist`                |
 | `#Debug`    | `#=debug #bisect`                                  |

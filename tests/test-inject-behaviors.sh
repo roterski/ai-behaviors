@@ -891,6 +891,28 @@ assert_eq "$COUNT" "1" && \
 
 rm "$LOCAL_PROJECT/.ai-behaviors/test-catalog-leaf/catalog"
 
+# === Shipped convergence composites ===
+
+echo ""
+echo "Shipped convergence composites:"
+
+# Every tag in compose resolves and injects its tagline (catches typos in compose)
+for COMPOSITE in Collate Converge; do
+  run_test "shipped_${COMPOSITE}_injects_every_leaf"
+  OUT=$(invoke "#$COMPOSITE" | context_of)
+  STDERR=$(cat "$STDERR_FILE")
+  OK=1
+  for TAG in $(cat "$REPO_DIR/behaviors/$COMPOSITE/compose"); do
+    TAGLINE=$(sed -n 2p "$REPO_DIR/behaviors/${TAG#\#}/prompt.md" 2>/dev/null || true)
+    if [ -z "$TAGLINE" ] || [[ "$OUT" != *"$TAGLINE"* ]]; then
+      fail "$TAG tagline missing from #$COMPOSITE"
+      OK=0
+      break
+    fi
+  done
+  [ "$OK" -eq 1 ] && assert_not_contains "$STDERR" "Unknown behaviors" && pass
+done
+
 # === Summary ===
 
 echo ""
