@@ -374,6 +374,15 @@ src/ai_behaviors/
 └── api.clj            # augment / behaviors / report / explain
 ```
 
+## Running tests
+
+From the repo root:
+
+- `bash tests/test-inject-behaviors.sh` and `bash tests/test-eca-inject-behaviors.sh` — the Claude Code and ECA hooks (need `jq`)
+- `bb test` — the Clojure API, standalone
+- `bb parity` — both hooks inject exactly what `ai-behaviors.core` does, for the shipped behaviors (needs `bash` and `jq`)
+- `tests/dogfood/converge/KEY.md` — a manual end-to-end run of `#Collate` → `#Converge` → Crux loop, with planted flaws and pass/fail checks
+
 ## Custom behaviors
 
 Create your own behaviors or composites at three levels:
