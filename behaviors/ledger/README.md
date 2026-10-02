@@ -14,7 +14,7 @@ Lineage matters as much as content. Two explorations run from the same prompt, o
 - Unstated lineage is recorded as shared and marked assumed — never as independent.
 - Every claim, premise, singleton and disagreement goes into the file, tagged with source IDs.
 - Restate claims in plain, uniform language. No source's wording or formatting survives.
-- Fixed sections: Sources + Lineage, Candidates, Criteria, Claims, Premises, Singletons, Disagreements, Not covered, Outside the schema.
+- Fixed sections: Sources + Lineage (each source's ID and file path — `#=converge` builds its re-collate command from them), Candidates, Criteria, Claims, Premises, Singletons, Disagreements, Not covered, Outside the schema.
 - Candidates: every option any source proposes, with the sources recommending it.
 - Criteria: every requirement or preference a source states, in the source's own words for strength ("must", "prefer"). Assigning MUST/SHOULD levels is a value judgment — it happens in `#=converge`, with the user.
 - Filename from the user; default `ledger.md` beside the explorations.

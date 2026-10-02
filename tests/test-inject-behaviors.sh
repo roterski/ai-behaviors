@@ -891,13 +891,13 @@ assert_eq "$COUNT" "1" && \
 
 rm "$LOCAL_PROJECT/.ai-behaviors/test-catalog-leaf/catalog"
 
-# === Shipped convergence composites ===
+# === Shipped composites ===
 
 echo ""
-echo "Shipped convergence composites:"
+echo "Shipped composites:"
 
 # Every tag in compose resolves and injects its tagline (catches typos in compose)
-for COMPOSITE in Collate Converge; do
+for COMPOSITE in Collate Converge Spike; do
   run_test "shipped_${COMPOSITE}_injects_every_leaf"
   OUT=$(invoke "#$COMPOSITE" | context_of)
   STDERR=$(cat "$STDERR_FILE")
@@ -912,6 +912,57 @@ for COMPOSITE in Collate Converge; do
   done
   [ "$OK" -eq 1 ] && assert_not_contains "$STDERR" "Unknown behaviors" && pass
 done
+
+run_test "spike_mode_injects_contract"
+OUT=$(invoke "#=spike" | context_of)
+assert_contains "$OUT" "# #=spike — Spike" && \
+  assert_contains "$OUT" "ProjectChangeBeyondFinding" && \
+  assert_contains "$OUT" "when halted ⊣ {the user's ruling}" && \
+  assert_contains "$OUT" "never empty" && \
+  assert_not_contains "$OUT" "ai/spike/" && pass
+
+run_test "scratch_injects_workspace_rules"
+OUT=$(invoke "#scratch" | context_of)
+assert_contains "$OUT" "LeftoverScratch" && \
+  assert_contains "$OUT" "containing \`*/\` and \`.gitignore\`" && \
+  assert_contains "$OUT" "git status --porcelain -uall" && pass
+
+run_test "finding_injects_section_rules"
+OUT=$(invoke "#finding" | context_of)
+assert_contains "$OUT" "OverwrittenSection" && \
+  assert_contains "$OUT" "PostHocPrediction" && \
+  assert_contains "$OUT" "or halted, which settles nothing" && pass
+
+run_test "collate_does_not_suggest_spike"
+OUT=$(invoke "#Collate" | context_of)
+assert_contains "$OUT" "suggest /clear, then #Converge" && \
+  assert_not_contains "$OUT" "#Spike" && pass
+
+run_test "converge_crux_names_both_routes"
+OUT=$(invoke "#=converge" | context_of)
+assert_contains "$OUT" "<ledger dir>/<slug>.finding.md" && \
+  assert_contains "$OUT" "when Crux ⊣ {#Research, #Spike}" && \
+  assert_contains "$OUT" "read (research suffices, by reading or quick probes of existing code)" && \
+  assert_contains "$OUT" "every command embedded in a prompt is wrapped in backticks" && \
+  assert_contains "$OUT" "If its section leaves the question unsettled: \`<run command>\`" && \
+  assert_contains "$OUT" "run → #Spike <question> → <path>, then <tail>." && \
+  assert_contains "$OUT" "settle <other slugs>, and once all findings exist, \`<collate command>\`" && \
+  assert_contains "$OUT" "lineage: <restated from the ledger's Sources>; findings independent" && \
+  assert_contains "$OUT" "if it exists, append -2" && \
+  assert_contains "$OUT" "with one Crux, just the backticked collate command" && pass
+
+run_test "spike_contracts_survive_second_turn"
+invoke "#Spike" >/dev/null
+OUT=$(invoke "run the experiment" | context_of)
+assert_contains "$OUT" "when halted ⊣ {the user's ruling}" && \
+  assert_contains "$OUT" "LeftoverScratch" && \
+  assert_contains "$OUT" "OverwrittenSection" && pass
+
+run_test "backticked_hashtag_is_inert"
+OUT=$(invoke "#Spike q → p, then \`#Collate a into b\`" | context_of)
+assert_contains "$OUT" "# #=spike — Spike" && \
+  assert_not_contains "$OUT" "# #=research — Research" && \
+  assert_not_contains "$OUT" "# #ledger — Ledger" && pass
 
 # === Summary ===
 
