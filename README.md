@@ -62,6 +62,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=spec`     | You need a plan or decision                | plans, not code            |
 | `#=code`     | You know what to build                     | requested scope            |
 | `#=debug`    | Something's broken                         | root cause, not symptoms   |
+| `#=spike`    | A question needs running code to answer    | throwaway, not kept        |
 | `#=review`   | You have code to evaluate                  | findings, not fixes        |
 | `#=test`     | You want something broken                  | attacks, not fixes         |
 | `#=drive`    | Pair programming — you steer, LLM types    | small steps                |
@@ -71,7 +72,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=probe`    | You want to think it through yourself      | questions only             |
 | `#=route`    | You don't know which mode or behaviors fit | method, not solutions      |
 
-**Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements. When explorations come from several sessions or agents, converge sits between design and spec: `#Collate` reduces them to a neutral ledger, then `#Converge` decides from it in a fresh conversation.
+**Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements. When explorations come from several sessions or agents, converge sits between design and spec: `#Collate` reduces them to a neutral ledger, then `#Converge` decides from it in a fresh conversation. When reading can't settle a question — a Crux from converge, or an unknown left by research or design — spike is a side loop: `#Spike` runs a throwaway experiment, and its finding comes back as evidence.
 
 **Evaluation.** review reads and judges; test actively tries to break. Review is a critique; test is an assault.
 
@@ -204,6 +205,7 @@ Each mode has a capitalized composite that bundles a curated default methodology
 | `#Spec`     | `#=spec #wbs #obligations #epistemic #falsifiable #scope #legible #concise`                         |
 | `#Code`     | `#=code #contract #name #checklist #scope #legible #concise`                                        |
 | `#Debug`    | `#=debug #bisect #coherence #scope #legible #concise`                                               |
+| `#Spike`    | `#=spike #scratch #finding #falsifiable #stop #epistemic #legible #concise`                         |
 | `#Review`   | `#=review #triage #coherence #scope #legible #concise`                                              |
 | `#Test`     | `#=test #boundary #legible #concise`                                                                |
 | `#Mentor`   | `#=mentor #explain-first #legible #concise`                                                         |
@@ -219,9 +221,11 @@ Stack behaviors on top: `#Debug #deep`, `#Code #subtract`, `#Frame #factor`.
 
 Output-channel modifiers change where the output goes, not how the LLM thinks. They compose with any mode.
 
-| Hashtag  | Description                                              |
-|----------|----------------------------------------------------------|
-| `#file`  | Persist structured output to a named file across modes   |
+| Hashtag    | Description                                                        |
+|------------|--------------------------------------------------------------------|
+| `#file`    | Persist structured output to a named file across modes             |
+| `#finding` | One evidence file per question, one section per mode               |
+| `#scratch` | Throwaway code and state in ignored `ai/spike/<slug>/` (`#=spike`) |
 
 ### Meta-Keywords
 
@@ -295,7 +299,7 @@ See the output-examples folder for generated python snake games with various fra
 
 ## How it works
 
-1. `UserPromptSubmit` hook extracts `#hashtags` from your prompt
+1. `UserPromptSubmit` hook extracts `#hashtags` from your prompt — a hashtag counts only at the start of a line or after whitespace, so `https://x.com#deep` and a backticked `` `#Collate` `` stay inert
 2. Resolves its symlink to find the repo
 3. For each hashtag: if a `compose` file exists, recursively expands the composite to leaf behaviors
 4. Reads `behaviors/<name>/prompt.md` for each leaf behavior (and composite custom text if present)

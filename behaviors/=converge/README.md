@@ -32,11 +32,23 @@ Switching from `#Collate` to `#Converge` in the same conversation works, but the
 
 | Outcome | Suggests | Why |
 |---|---|---|
-| Crux — a factual conflict decides the outcome | `#Research` | Settle it with evidence, then re-collate and converge again |
+| Crux — a factual conflict decides the outcome | `#Research` (read route) or `#Spike` (run route), as paste-ready commands | Settle it with evidence, then re-collate and converge again — see [Crux loop](#crux-loop) |
 | Framing conflict — explorations answered different questions | `#Frame` | Fix the question before any answer can be chosen |
 | Choice or Synthesis, confirmed by you | `#Spec`, `#Record` | Plan it, or record the decision |
 
 Value conflicts don't exit — you rule on them inside the mode.
+
+### Crux loop
+
+1. The Crux names the question, a slug, a new finding path beside the ledger (`<ledger dir>/<slug>.finding.md`), and a route.
+   - **read** — research suffices, by reading or quick probes of existing code.
+   - **run** — the answer needs a stated prediction and an isolated workspace: building something new, timing or measuring, or a result that decides a MUST.
+   The route picks the safeguards, not what research may do: research does run probes, and its findings say so.
+2. Every step comes as a paste-ready prompt, because `/clear` drops the converge session and everything it knew.
+3. Read route: `#Research #file <path> — <question>, then <tail>`. If its `# Research` section leaves the question unsettled, use the run command, which adds `# Spike` to the same file.
+4. Run route: `#Spike <question> → <path>, then <tail>` — the spike hands off to its tail when answered.
+5. Tail, on every command: `settle <other slugs>, and once all findings exist, <collate command>`; with one Crux, just the collate command. Settle in any order — whichever command you run last carries the next step. Embedded commands are backticked: the hook ignores a hashtag that follows a backtick, so only the leading tag of a pasted prompt activates.
+6. Collate command: every exploration and finding path, the next ledger's name, and the lineage restated from the ledger's Sources, with findings independent. Then `/clear`, `#Converge <next ledger>`.
 
 ## Conventions
 
