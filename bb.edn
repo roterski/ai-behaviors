@@ -3,4 +3,9 @@
                :requires ([clojure.test :as t]
                           [ai-behaviors.core-test])
                :task (let [{:keys [fail error]} (t/run-tests 'ai-behaviors.core-test)]
-                       (System/exit (+ fail error)))}}}
+                       (System/exit (+ fail error)))}
+         parity {:doc "Check both hooks inject what ai-behaviors.core does (needs bash and jq)"
+                 :requires ([clojure.test :as t]
+                            [ai-behaviors.parity-test])
+                 :task (let [{:keys [fail error]} (t/run-tests 'ai-behaviors.parity-test)]
+                         (System/exit (+ fail error)))}}}
