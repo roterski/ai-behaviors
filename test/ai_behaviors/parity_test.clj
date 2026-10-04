@@ -19,7 +19,8 @@
    "#=research" "#Research" "#Collate" "#=converge" "#Converge" "#Route"
    "#Frame" "#Design" "#Spec" "#Code" "#Debug" "#Test"
    "#=spike\n#stop" "text #Spike more" "https://x.com#Spike" "#EXPLAIN #Spike"
-   "#Spike q → p, then `#Collate a into b`"])
+   "#Spike q → p, then `#Collate a into b`"
+   "#=stepback" "#Stepback" "#Stepback #file x"])
 
 (defn- hook-context
   "additionalContext from hook `script` fed `payload`, with a fresh HOME and XDG dir."

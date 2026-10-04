@@ -63,6 +63,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=code`     | You know what to build                     | requested scope            |
 | `#=debug`    | Something's broken                         | root cause, not symptoms   |
 | `#=spike`    | A question needs running code to answer    | throwaway, not kept        |
+| `#=stepback` | You're stuck and need a different angle    | reframe, not continue      |
 | `#=review`   | You have code to evaluate                  | findings, not fixes        |
 | `#=test`     | You want something broken                  | attacks, not fixes         |
 | `#=drive`    | Pair programming — you steer, LLM types    | small steps                |
@@ -72,7 +73,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=probe`    | You want to think it through yourself      | questions only             |
 | `#=route`    | You don't know which mode or behaviors fit | method, not solutions      |
 
-**Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements. When explorations come from several sessions or agents, converge sits between design and spec: `#Collate` reduces them to a neutral ledger, then `#Converge` decides from it in a fresh conversation. When reading can't settle a question — a Crux from converge, or an unknown left by research or design — spike is a side loop: `#Spike` runs a throwaway experiment, and its finding comes back as evidence.
+**Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements. When explorations come from several sessions or agents, converge sits between design and spec: `#Collate` reduces them to a neutral ledger, then `#Converge` decides from it in a fresh conversation. When reading can't settle a question — a Crux from converge, or an unknown left by research or design — spike is a side loop: `#Spike` runs a throwaway experiment, and its finding comes back as evidence. When a line of work stalls in any mode, step-back is the other side loop: `#Stepback` reframes the problem and routes back in by the level of the chosen framing.
 
 **Evaluation.** review reads and judges; test actively tries to break. Review is a critique; test is an assault.
 
@@ -206,6 +207,7 @@ Each mode has a capitalized composite that bundles a curated default methodology
 | `#Code`     | `#=code #contract #name #checklist #scope #legible #concise`                                        |
 | `#Debug`    | `#=debug #bisect #coherence #scope #legible #concise`                                               |
 | `#Spike`    | `#=spike #scratch #finding #falsifiable #stop #epistemic #legible #concise`                         |
+| `#Stepback` | `#=stepback #coherence #legible #concise`                                                           |
 | `#Review`   | `#=review #triage #coherence #scope #legible #concise`                                              |
 | `#Test`     | `#=test #boundary #legible #concise`                                                                |
 | `#Mentor`   | `#=mentor #explain-first #legible #concise`                                                         |
@@ -273,6 +275,7 @@ Modes define the interaction loop. Behaviors fill in the methodology. The same m
 | `#=mentor #explain-first #deep`       | Deep teaching, explain → demonstrate → check     |
 | `#=probe #challenge`                  | Hard questioning, expose contradictions          |
 | `#=spec #concrete`                    | Verify spec terms resolve concretely before building |
+| `#=stepback #first-principles`        | Reframe a stuck problem from its constraints     |
 | `#=record #concise`                   | Terse documentation, minimum words               |
 | `#=design #ct`                        | Evaluate candidates through categorical structure |
 | `#ct #analogy`                        | CT mapping + free-domain analogy in parallel      |
@@ -382,6 +385,7 @@ From the repo root:
 - `bb test` — the Clojure API, standalone
 - `bb parity` — both hooks inject exactly what `ai-behaviors.core` does, for the shipped behaviors (needs `bash` and `jq`)
 - `tests/dogfood/converge/KEY.md` — a manual end-to-end run of `#Collate` → `#Converge` → Crux loop, with planted flaws and pass/fail checks
+- `tests/dogfood/stepback/KEY.md` — a manual run of a stuck session → `#Stepback` → fresh-session handoff, with plants and pass/fail checks
 
 ## Custom behaviors
 
