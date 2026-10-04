@@ -282,7 +282,7 @@ echo ""
 echo "Shipped composites:"
 
 # Every tag in compose resolves and injects its tagline (catches typos in compose)
-for COMPOSITE in Collate Converge Spike; do
+for COMPOSITE in Collate Converge Spike Stepback; do
   run_test "eca_shipped_${COMPOSITE}_injects_every_leaf"
   OUT=$(invoke "#$COMPOSITE" | context_of)
   STDERR=$(cat "$STDERR_FILE")
@@ -348,6 +348,38 @@ OUT=$(invoke "#Spike q → p, then \`#Collate a into b\`" | context_of)
 assert_contains "$OUT" "# #=spike — Spike" && \
   assert_not_contains "$OUT" "# #=research — Research" && \
   assert_not_contains "$OUT" "# #ledger — Ledger" && pass
+
+run_test "eca_stepback_mode_injects_contract"
+OUT=$(invoke "#=stepback" | context_of)
+assert_contains "$OUT" "# #=stepback — Step Back" && \
+  assert_contains "$OUT" "ContinuingCurrentLine" && \
+  assert_contains "$OUT" "If none changes the goal, say why" && \
+  assert_contains "$OUT" "else #Research, or #Spike" && \
+  assert_contains "$OUT" "never a session scratchpad or temp directory" && \
+  assert_contains "$OUT" "never ask the user to edit the file" && pass
+
+run_test "eca_stepback_contract_survives_second_turn"
+invoke "#Stepback" >/dev/null
+OUT=$(invoke "these framings don't fit" | context_of)
+assert_contains "$OUT" "ContinuingCurrentLine" && \
+  assert_contains "$OUT" "the fresh-session handoff" && pass
+
+run_test "eca_stepback_handoff_lines_activate"
+OUT=$(invoke "#Stepback #file notes/stuck.md" | context_of)
+assert_contains "$OUT" "# #=stepback — Step Back" && \
+  assert_contains "$OUT" "# #file — File" && pass
+
+run_test "eca_stepback_path_prompt_injects_section_rules"
+OUT=$(invoke "#Stepback notes/stuck.md" | context_of)
+assert_contains "$OUT" "Given a \`# Step Back\` section" && \
+  assert_contains "$OUT" "the mode it records is the prior mode" && \
+  assert_contains "$OUT" "the file the step-back was given, if any" && \
+  assert_not_contains "$OUT" "# #file — File" && pass
+
+run_test "eca_route_catalog_lists_stepback"
+OUT=$(invoke "#Route" | context_of)
+assert_contains "$OUT" "#=stepback — Leave the current line." && \
+  assert_contains "$OUT" "#Stepback → #=stepback #coherence #legible #concise" && pass
 
 # === Summary ===
 

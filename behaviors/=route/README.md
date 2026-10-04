@@ -19,6 +19,8 @@ It is a mode, not a modifier, because it decides what the conversation produces 
 
 Mid-session, type `#Route` to ask "is this still the right approach?". It replaces the current mode for as long as routing takes; the recommended line switches you back, to the same mode or a better one. The conversation so far stays in context, so route sees what you were doing.
 
+Route asks whether the *method* still fits. When the method is fine but the problem framing might be wrong — every attempt is a variation of the last — use `#Stepback` instead.
+
 ## Catalog
 
 `=route` carries a `catalog` file, so the hook appends a `<behavior-catalog>` after its prompt: every mode, composite and modifier resolvable from the current project (project-local, user-local, repo), one line each — the tagline from line 2 of its `prompt.md`, or the expansion of its `compose`. Your own behaviors get recommended too.

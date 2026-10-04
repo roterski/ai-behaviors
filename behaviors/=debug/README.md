@@ -26,6 +26,7 @@ The mode does not prescribe HOW to investigate — that's what behavior modifier
 - `#factor` — map the fault space to independent dimensions
 - `#coherence` — a hypothesis must fit ALL symptoms, not just the loud one
 - `#scope` — fix at the right layer, not where the symptom shows
+- `#Stepback` — when each fix moves the bug instead of removing it, switch out and reframe
 
 ## Common prompts
 
