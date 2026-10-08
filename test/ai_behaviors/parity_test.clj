@@ -20,7 +20,8 @@
    "#Frame" "#Design" "#Spec" "#Code" "#Debug" "#Test"
    "#=spike\n#stop" "text #Spike more" "https://x.com#Spike" "#EXPLAIN #Spike"
    "#Spike q → p, then `#Collate a into b`"
-   "#=stepback" "#Stepback" "#Stepback #file x"])
+   "#=stepback" "#Stepback" "#Stepback #file x"
+   "#assumptions" "#proceed" "#Code #proceed" "#Spike #proceed" "#EXPLAIN #proceed"])
 
 (defn- hook-context
   "additionalContext from hook `script` fed `payload`, with a fresh HOME and XDG dir."
