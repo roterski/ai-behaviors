@@ -140,6 +140,8 @@ Each is orthogonal to qualities and to each other. Some pair naturally with spec
 | `#name`             | Naming precision      | If you can't name it precisely, the abstraction is wrong   |
 | `#checklist`        | Scope tracking        | Track every spec item, force disposition, skip nothing     |
 | `#stop`             | Boundary discipline   | Stop at gaps, report provenance, don't cross phases        |
+| `#assumptions`      | Choice record         | List every choice made for the user with: rejected alternative, location, consequence if wrong |
+| `#proceed`          | Gap continuation      | Keep going past open choices, record each; halt before irreversible steps |
 | `#langlang`         | Knowledge compilation | Compile knowledge into orthogonal artifact (IS/IS NOT)     |
 | `#bisect`           | Fault isolation       | Cut problem space in half by executing, observe, repeat    |
 | `#epistemic`        | Epistemic rigor       | Label claims with source and confidence, distinguish fact/inference/gap |
@@ -282,6 +284,8 @@ Modes define the interaction loop. Behaviors fill in the methodology. The same m
 | `#=navigate #wide #challenge`         | Direct strategy while surfacing risks            |
 | `#deep #challenge #steel-man`         | Dialectic: strengthen then attack, in depth      |
 | `#=code #checklist #stop`             | Implement spec items, halt on gaps, track all    |
+| `#=code #checklist #proceed`          | Implement spec items unattended, list every assumption |
+| `#Spike #proceed`                     | Go past open choices, still halt on surprises    |
 | `#=debug #stop`                       | Diagnose bug, halt if cause is architectural     |
 | `#=research #langlang #deep`          | Discover orthogonal principles for a subject     |
 | `#Route`                              | Recommend how to attack the problem              |

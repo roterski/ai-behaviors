@@ -381,6 +381,35 @@ OUT=$(invoke "#Route" | context_of)
 assert_contains "$OUT" "#=stepback — Leave the current line." && \
   assert_contains "$OUT" "#Stepback → #=stepback #coherence #legible #concise" && pass
 
+run_test "eca_assumptions_injects_contract"
+OUT=$(invoke "#assumptions" | context_of)
+assert_contains "$OUT" "# #assumptions — Assumptions" && \
+  assert_contains "$OUT" "SilentChoice" && \
+  assert_contains "$OUT" "RestatedCode" && \
+  assert_contains "$OUT" "never restate the code" && pass
+
+run_test "eca_proceed_records_without_assumptions"
+OUT=$(invoke "#proceed" | context_of)
+assert_contains "$OUT" "# #proceed — Proceed" && \
+  assert_contains "$OUT" "IrreversibleOnAssumption" && \
+  assert_contains "$OUT" "SilentChoice" && \
+  assert_contains "$OUT" "never restate the code" && \
+  assert_not_contains "$OUT" "# #assumptions — Assumptions" && pass
+
+run_test "eca_proceed_keeps_the_mode"
+OUT=$(invoke "#Code #proceed" | context_of)
+assert_contains "$OUT" "# #=code — Code" && \
+  assert_contains "$OUT" "# #proceed — Proceed" && pass
+
+run_test "eca_proceed_survives_second_turn"
+invoke "#Code #proceed" >/dev/null
+OUT=$(invoke "next step" | context_of)
+assert_contains "$OUT" "HaltOnChoice" && pass
+
+run_test "eca_proceed_and_assumptions_share_record_format"
+assert_eq "$(grep '^End of response' "$REPO_DIR/behaviors/assumptions/prompt.md")" \
+  "$(grep '^End of response' "$REPO_DIR/behaviors/proceed/prompt.md")" && pass
+
 # === Summary ===
 
 echo ""
