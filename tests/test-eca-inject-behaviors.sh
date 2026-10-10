@@ -282,7 +282,7 @@ echo ""
 echo "Shipped composites:"
 
 # Every tag in compose resolves and injects its tagline (catches typos in compose)
-for COMPOSITE in Collate Converge Spike Stepback; do
+for COMPOSITE in Collate Converge Spike Stepback Refactor; do
   run_test "eca_shipped_${COMPOSITE}_injects_every_leaf"
   OUT=$(invoke "#$COMPOSITE" | context_of)
   STDERR=$(cat "$STDERR_FILE")
@@ -380,6 +380,35 @@ run_test "eca_route_catalog_lists_stepback"
 OUT=$(invoke "#Route" | context_of)
 assert_contains "$OUT" "#=stepback — Leave the current line." && \
   assert_contains "$OUT" "#Stepback → #=stepback #coherence #legible #concise" && pass
+
+run_test "eca_refactor_mode_injects_contract"
+OUT=$(invoke "#=refactor" | context_of)
+assert_contains "$OUT" "# #=refactor — Refactor" && \
+  assert_contains "$OUT" "{BehaviorChange, EditsToExistingTests, TestSupportFiles, UnrequestedFeatures}" && \
+  assert_contains "$OUT" "existing and new tests pass" && \
+  assert_contains "$OUT" "whatever selects which tests run" && \
+  assert_contains "$OUT" "At the start of each request, record HEAD, run the tests" && \
+  assert_contains "$OUT" "Every halt: stop, explain why, then suggest the exit" && \
+  assert_contains "$OUT" "number of existing tests run against the baseline count" && \
+  assert_contains "$OUT" "when the baseline is red ⊣ {#Debug}" && \
+  assert_contains "$OUT" "or are inline in source files ⊣ {#Code}" && \
+  assert_contains "$OUT" "First find the test files" && \
+  assert_contains "$OUT" "New test files may only add test cases" && \
+  assert_contains "$OUT" "Every exit, halts included, lists the aliases" && \
+  assert_contains "$OUT" "when a test must change ⊣ {#Code}" && \
+  assert_contains "$OUT" "keeping the old one as an alias that forwards to it, not a copy" && \
+  assert_contains "$OUT" "<every path found first>" && \
+  assert_contains "$OUT" "If those paths have uncommitted changes, say so" && pass
+
+run_test "eca_refactor_contract_survives_second_turn"
+invoke "#Refactor" >/dev/null
+OUT=$(invoke "now extract the parser" | context_of)
+assert_contains "$OUT" "EditsToExistingTests" && \
+  assert_contains "$OUT" "when no test exercises the changed code ⊣ {#Test}" && pass
+
+run_test "eca_review_hands_structural_findings_to_refactor"
+OUT=$(invoke "#=review" | context_of)
+assert_contains "$OUT" "#Refactor for structural findings" && pass
 
 run_test "eca_assumptions_injects_contract"
 OUT=$(invoke "#assumptions" | context_of)

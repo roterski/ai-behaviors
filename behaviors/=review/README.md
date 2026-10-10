@@ -15,6 +15,8 @@ Review code. Find issues. Do not fix them.
 
 Code review is observation, not action. The mode provides the interaction loop: user submits code, Claude produces findings. HOW to structure findings (severity triage, finding format) is a methodology choice.
 
+When findings are delivered, fixes go to `#Code`; structural findings — naming, layering, duplication — go to `#Refactor`, which changes structure without changing behavior.
+
 ## Pairs well with
 
 - `#triage` — label, locate, assess blocking (Conventional Comments)
