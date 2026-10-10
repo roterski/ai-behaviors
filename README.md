@@ -61,6 +61,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=converge` | You have explorations to reduce to one decision | decision, not new options |
 | `#=spec`     | You need a plan or decision                | plans, not code            |
 | `#=code`     | You know what to build                     | requested scope            |
+| `#=refactor` | It works; now improve its structure        | same tests, unedited       |
 | `#=debug`    | Something's broken                         | root cause, not symptoms   |
 | `#=spike`    | A question needs running code to answer    | throwaway, not kept        |
 | `#=stepback` | You're stuck and need a different angle    | reframe, not continue      |
@@ -73,7 +74,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=probe`    | You want to think it through yourself      | questions only             |
 | `#=route`    | You don't know which mode or behaviors fit | method, not solutions      |
 
-**Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements. When explorations come from several sessions or agents, converge sits between design and spec: `#Collate` reduces them to a neutral ledger, then `#Converge` decides from it in a fresh conversation. When reading can't settle a question — a Crux from converge, or an unknown left by research or design — spike is a side loop: `#Spike` runs a throwaway experiment, and its finding comes back as evidence. When a line of work stalls in any mode, step-back is the other side loop: `#Stepback` reframes the problem and routes back in by the level of the chosen framing.
+**Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements; refactor then improves structure without changing behavior. When explorations come from several sessions or agents, converge sits between design and spec: `#Collate` reduces them to a neutral ledger, then `#Converge` decides from it in a fresh conversation. When reading can't settle a question — a Crux from converge, or an unknown left by research or design — spike is a side loop: `#Spike` runs a throwaway experiment, and its finding comes back as evidence. When a line of work stalls in any mode, step-back is the other side loop: `#Stepback` reframes the problem and routes back in by the level of the chosen framing.
 
 **Evaluation.** review reads and judges; test actively tries to break. Review is a critique; test is an assault.
 
@@ -207,6 +208,7 @@ Each mode has a capitalized composite that bundles a curated default methodology
 | `#Converge` | `#=converge #obligations #evaluate #checklist #independence #minority #coherence #legible #concise` |
 | `#Spec`     | `#=spec #wbs #obligations #epistemic #falsifiable #scope #legible #concise`                         |
 | `#Code`     | `#=code #contract #name #checklist #scope #legible #concise`                                        |
+| `#Refactor` | `#=refactor #name #scope #coherence #legible #concise`                                              |
 | `#Debug`    | `#=debug #bisect #coherence #scope #legible #concise`                                               |
 | `#Spike`    | `#=spike #scratch #finding #falsifiable #stop #epistemic #legible #concise`                         |
 | `#Stepback` | `#=stepback #coherence #legible #concise`                                                           |
@@ -390,6 +392,7 @@ From the repo root:
 - `bb parity` — both hooks inject exactly what `ai-behaviors.core` does, for the shipped behaviors (needs `bash` and `jq`)
 - `tests/dogfood/converge/KEY.md` — a manual end-to-end run of `#Collate` → `#Converge` → Crux loop, with planted flaws and pass/fail checks
 - `tests/dogfood/stepback/KEY.md` — a manual run of a stuck session → `#Stepback` → fresh-session handoff, with plants and pass/fail checks
+- `tests/dogfood/refactor/KEY.md` — a manual `#Refactor` run against planted bugs, renames and coverage gaps, with pass/fail checks
 
 ## Custom behaviors
 

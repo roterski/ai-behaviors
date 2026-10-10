@@ -21,6 +21,7 @@
    "#=spike\n#stop" "text #Spike more" "https://x.com#Spike" "#EXPLAIN #Spike"
    "#Spike q → p, then `#Collate a into b`"
    "#=stepback" "#Stepback" "#Stepback #file x"
+   "#=refactor" "#Refactor" "#EXPLAIN #Refactor" "#=review"
    "#assumptions" "#proceed" "#Code #proceed" "#Spike #proceed" "#EXPLAIN #proceed"])
 
 (defn- hook-context

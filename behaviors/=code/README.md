@@ -15,6 +15,8 @@ Write production code. Ship working software.
 
 This is the implementation mode. The user drives; Claude writes code that matches existing conventions. The mode is already minimal — methodology is provided by behaviors like `#tdd`, `#contract`, `#io`, `#name`.
 
+Once it works, `#Refactor` restructures it without changing behavior.
+
 ## Pairs well with
 
 - `#tdd` — red → green → refactor cycle
