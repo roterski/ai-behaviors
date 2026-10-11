@@ -282,7 +282,7 @@ echo ""
 echo "Shipped composites:"
 
 # Every tag in compose resolves and injects its tagline (catches typos in compose)
-for COMPOSITE in Collate Converge Spike Stepback Refactor; do
+for COMPOSITE in Collate Converge Spike Stepback Refactor Tour; do
   run_test "eca_shipped_${COMPOSITE}_injects_every_leaf"
   OUT=$(invoke "#$COMPOSITE" | context_of)
   STDERR=$(cat "$STDERR_FILE")
@@ -438,6 +438,54 @@ assert_contains "$OUT" "HaltOnChoice" && pass
 run_test "eca_proceed_and_assumptions_share_record_format"
 assert_eq "$(grep '^End of response' "$REPO_DIR/behaviors/assumptions/prompt.md")" \
   "$(grep '^End of response' "$REPO_DIR/behaviors/proceed/prompt.md")" && pass
+
+run_test "eca_tour_mode_injects_contract"
+OUT=$(invoke "#=tour" | context_of)
+assert_contains "$OUT" "# #=tour — Tour" && \
+  assert_contains "$OUT" "MentalModel" && \
+  assert_contains "$OUT" "{Mutation, NewCode, Recommendations, Fixes}" && \
+  assert_contains "$OUT" "⊣ {#Record, #Frame, #Review}" && pass
+
+run_test "eca_tour_composite_injects_zoom"
+OUT=$(invoke "#Tour" | context_of)
+assert_contains "$OUT" "# #=tour — Tour" && \
+  assert_contains "$OUT" "# #zoom — Zoom" && \
+  assert_contains "$OUT" "# #epistemic — Epistemic" && pass
+
+run_test "eca_tour_contract_survives_second_turn"
+invoke "#Tour" >/dev/null
+OUT=$(invoke "zoom to Shape" | context_of)
+assert_contains "$OUT" "MentalModel" && \
+  assert_contains "$OUT" "ContentBelowLevel" && pass
+
+run_test "eca_zoom_injects_ladder_and_redirects"
+OUT=$(invoke "#zoom" | context_of)
+assert_contains "$OUT" "# #zoom — Zoom" && \
+  assert_contains "$OUT" "ContentBelowLevel" && \
+  assert_contains "$OUT" "invariants and what-it-never-does are Key points" && \
+  assert_contains "$OUT" "the Deeper entry \"Evidence for <claim>\"" && \
+  assert_contains "$OUT" "With #proceed: each level once for the whole region" && \
+  assert_contains "$OUT" "never down into mechanism" && pass
+
+run_test "eca_delta_injects_contract_and_zoom_mapping"
+OUT=$(invoke "#delta" | context_of)
+assert_contains "$OUT" "# #delta — Delta" && \
+  assert_contains "$OUT" "FileOrderWalkthrough" && \
+  assert_contains "$OUT" "\"Mechanical: none\" when empty" && \
+  assert_contains "$OUT" "NotChanged → Key points" && pass
+
+run_test "eca_tour_delta_keeps_the_mode"
+OUT=$(invoke "#Tour #delta" | context_of)
+assert_contains "$OUT" "# #=tour — Tour" && \
+  assert_contains "$OUT" "# #zoom — Zoom" && \
+  assert_contains "$OUT" "# #delta — Delta" && pass
+
+run_test "eca_route_catalog_lists_tour"
+OUT=$(invoke "#Route" | context_of)
+assert_contains "$OUT" "#=tour — Build the user's mental model of existing code." && \
+  assert_contains "$OUT" "#Tour → #=tour #zoom #epistemic #legible #concise" && \
+  assert_contains "$OUT" "#zoom — Coarse to fine." && \
+  assert_contains "$OUT" "#delta — Explain a change as the difference it makes." && pass
 
 # === Summary ===
 
