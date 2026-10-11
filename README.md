@@ -72,6 +72,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 | `#=record`   | Knowledge needs documenting                | capture, not invent        |
 | `#=mentor`   | You want to learn while building           | explain, never just answer |
 | `#=probe`    | You want to think it through yourself      | questions only             |
+| `#=tour`     | You want to understand existing code       | your model, not changes    |
 | `#=route`    | You don't know which mode or behaviors fit | method, not solutions      |
 
 **Pipeline.** The first five modes trace a natural arc: frame → research → design → spec → code. Each produces the input the next one consumes. Frame scopes the problem without investigating. Research gathers evidence without recommending. Design explores solution candidates without committing. Spec structures the chosen approach without implementing. Code implements; refactor then improves structure without changing behavior. When explorations come from several sessions or agents, converge sits between design and spec: `#Collate` reduces them to a neutral ledger, then `#Converge` decides from it in a fresh conversation. When reading can't settle a question — a Crux from converge, or an unknown left by research or design — spike is a side loop: `#Spike` runs a throwaway experiment, and its finding comes back as evidence. When a line of work stalls in any mode, step-back is the other side loop: `#Stepback` reframes the problem and routes back in by the level of the chosen framing.
@@ -80,7 +81,7 @@ Modes define the interaction loop — who drives, what the LLM produces, and wha
 
 **Pair programming.** drive and navigate are the same interaction with roles swapped — who steers vs who types.
 
-**Learning.** mentor provides knowledge; probe draws out yours.
+**Learning.** mentor provides knowledge; probe draws out yours; tour maps existing code into your model, coarse first.
 
 **Routing.** route recommends which of the above to use, from the catalog of behaviors resolvable in your project. Switch to it mid-session to ask whether the current approach still fits; its recommended line switches you back.
 
@@ -155,6 +156,8 @@ Each is orthogonal to qualities and to each other. Some pair naturally with spec
 | `#falsifiable`      | Verification          | Every item has a done-condition or falsification-condition |
 | `#boundary`         | Edge case testing     | Boundaries, sequences, environment, concurrency            |
 | `#explain-first`    | Teach by explaining   | Explanation → code → comprehension check cycle             |
+| `#zoom`             | Explanation order     | Coarse to fine, one level per step; deeper content parked under "Deeper" |
+| `#delta`            | Change explanation    | Motivation, before/after, intent groups, reading order — not file order |
 | `#ledger`           | Neutral collation     | Restate explorations into one sourced ledger file, lineage asked |
 | `#independence`     | Correlation control   | Count independent reasons, not agreeing voices             |
 | `#disagreement-map` | Conflict typing       | Factual → Crux, values → user, framing → frame             |
@@ -216,6 +219,7 @@ Each mode has a capitalized composite that bundles a curated default methodology
 | `#Test`     | `#=test #boundary #legible #concise`                                                                |
 | `#Mentor`   | `#=mentor #explain-first #legible #concise`                                                         |
 | `#Probe`    | `#=probe #legible #concise`                                                                         |
+| `#Tour`     | `#=tour #zoom #epistemic #legible #concise`                                                         |
 | `#Drive`    | `#=drive #legible #concise`                                                                         |
 | `#Navigate` | `#=navigate #legible #concise`                                                                      |
 | `#Record`   | `#=record #legible #concise`                                                                        |
@@ -278,6 +282,8 @@ Modes define the interaction loop. Behaviors fill in the methodology. The same m
 | `#=research #epistemic #deep #wide`   | Deep, broad investigation with epistemic rigor   |
 | `#=mentor #explain-first #deep`       | Deep teaching, explain → demonstrate → check     |
 | `#=probe #challenge`                  | Hard questioning, expose contradictions          |
+| `#=tour #zoom #delta`                 | Walk through a change, motivation first          |
+| `#=tour #zoom #proceed`               | Every level once, down to key points, unattended |
 | `#=spec #concrete`                    | Verify spec terms resolve concretely before building |
 | `#=stepback #first-principles`        | Reframe a stuck problem from its constraints     |
 | `#=record #concise`                   | Terse documentation, minimum words               |

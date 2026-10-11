@@ -22,7 +22,8 @@
    "#Spike q → p, then `#Collate a into b`"
    "#=stepback" "#Stepback" "#Stepback #file x"
    "#=refactor" "#Refactor" "#EXPLAIN #Refactor" "#=review"
-   "#assumptions" "#proceed" "#Code #proceed" "#Spike #proceed" "#EXPLAIN #proceed"])
+   "#assumptions" "#proceed" "#Code #proceed" "#Spike #proceed" "#EXPLAIN #proceed"
+   "#=tour" "#Tour" "#zoom" "#delta" "#Tour #delta" "#Tour #proceed" "#EXPLAIN #Tour"])
 
 (defn- hook-context
   "additionalContext from hook `script` fed `payload`, with a fresh HOME and XDG dir."
