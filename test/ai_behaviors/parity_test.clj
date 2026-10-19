@@ -23,7 +23,8 @@
    "#=stepback" "#Stepback" "#Stepback #file x"
    "#=refactor" "#Refactor" "#EXPLAIN #Refactor" "#=review"
    "#assumptions" "#proceed" "#Code #proceed" "#Spike #proceed" "#EXPLAIN #proceed"
-   "#=tour" "#Tour" "#zoom" "#delta" "#Tour #delta" "#Tour #proceed" "#EXPLAIN #Tour"])
+   "#=tour" "#Tour" "#zoom" "#delta" "#Tour #delta" "#Tour #proceed" "#EXPLAIN #Tour"
+   "#html" "#=review #html" "#Design #html" "#EXPLAIN #html"])
 
 (defn- hook-context
   "additionalContext from hook `script` fed `payload`, with a fresh HOME and XDG dir."

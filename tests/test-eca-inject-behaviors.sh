@@ -312,6 +312,18 @@ assert_contains "$OUT" "LeftoverScratch" && \
   assert_contains "$OUT" "containing \`*/\` and \`.gitignore\`" && \
   assert_contains "$OUT" "git status --porcelain -uall" && pass
 
+run_test "eca_html_points_at_html_channel"
+OUT=$(invoke "#=review #html" | context_of)
+assert_contains "$OUT" "# #html — HTML" && \
+  assert_contains "$OUT" "ActingBeforeDone" && \
+  assert_contains "$OUT" "AnswerOutsideRuntime" && \
+  assert_contains "$OUT" "QuestionWithoutNote" && \
+  assert_contains "$OUT" "UnclearableAnswer" && \
+  assert_contains "$OUT" "ActingOnDeferred" && \
+  assert_contains "$OUT" "data-decision=\"ID-note\"" && \
+  assert_contains "$OUT" "htmlChannel.record(id,null)" && \
+  assert_contains "$OUT" "channel_setup → write the page → check_page → give the URL and end the turn" && pass
+
 run_test "eca_finding_injects_section_rules"
 OUT=$(invoke "#finding" | context_of)
 assert_contains "$OUT" "OverwrittenSection" && \

@@ -1,0 +1,9 @@
+# #html — HTML
+Present anything that needs the user's input as an html-channel page.
+
+∀ output needing the user's decision, choice or review: an html-channel page that follows its CONVENTION. html ∩ {MarkdownOptionList, AnswerOutsideRuntime, ActingBeforeDone, QuestionWithoutNote, UnclearableAnswer, ActingOnDeferred} = ∅    -- HARD CONSTRAINT
+Prefer the MCP tools: channel_setup → write the page → check_page → give the URL and end the turn → get_decisions when the user replies. Fix every error check_page reports and read its dark screenshot before giving the URL. Else the `html-channel` CLI, following the html-channel skill. Neither installed: say so, then fall back to markdown.
+Question = each data-decision ID except status, notes and *-note. After its controls: <button data-clear="ID">Clear</button>, then <textarea rows="2" data-decision="ID-note" placeholder="Another answer, or a comment"></textarea>. Once per decision page, verbatim:
+<script>document.addEventListener("click",e=>{const c=e.target.closest("[data-clear]"),b=e.target.closest("button[data-choice].chosen:not([data-decision=status])"),id=c?c.dataset.clear:b?.dataset.decision;if(id){e.stopPropagation();htmlChannel.record(id,null)}},true)</script>
+Decision page: don't act on its answers until done=true. Unanswered = ID and ID-note each absent, null or "" (checkbox false is an answer) → deferred: name it in your reply, don't act on it. Note alone = the answer; choice + note = the choice qualified by the note; a note contradicting its choice: ask before acting. Deeper targets: revise the page with them expanded, give the URL again, end the turn. Report-only page: no Done button, no questions, no waiting.
+With #zoom: a step is a page revision; its Deeper targets are <button data-deeper="target"> on the page, and the deeper list is the user's pick.
