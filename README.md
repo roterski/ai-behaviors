@@ -234,6 +234,7 @@ Output-channel modifiers change where the output goes, not how the LLM thinks. T
 | Hashtag    | Description                                                        |
 |------------|--------------------------------------------------------------------|
 | `#file`    | Persist structured output to a named file across modes             |
+| `#html`    | Questions and output as an interactive [html-channel](https://github.com/roterski/html-channel) page |
 | `#finding` | One evidence file per question, one section per mode               |
 | `#scratch` | Throwaway code and state in ignored `ai/spike/<slug>/` (`#=spike`) |
 

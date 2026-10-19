@@ -36,6 +36,19 @@ else
   echo "  already registered: inject-behaviors.sh"
 fi
 
+# --- html-channel (used by #html) ---
+if command -v bbin >/dev/null 2>&1; then
+  if out=$(bbin install io.github.roterski/html-channel 2>&1); then
+    echo "  installed: html-channel (for #html)"
+  else
+    echo "  warning: html-channel install failed; #html falls back to markdown until it succeeds:"
+    echo "$out" | tail -3 | sed 's/^/    /'
+  fi
+else
+  echo "  skipped: html-channel (for #html) needs bbin. Install bbin, then run:"
+  echo "    bbin install io.github.roterski/html-channel"
+fi
+
 echo ""
 echo "Done. Use #hashtags in Claude Code prompts:"
 echo "  Fix the auth bug #=code #challenge"
