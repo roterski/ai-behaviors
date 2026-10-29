@@ -939,6 +939,29 @@ assert_contains "$OUT" "# #html — HTML" && \
   assert_contains "$OUT" "htmlChannel.record(id,null)" && \
   assert_contains "$OUT" "channel_setup → write the page → check_page → give the URL and end the turn" && pass
 
+run_test "explorable_injects_arc_contract_and_channels"
+OUT=$(invoke "#=research #explorable #html" | context_of)
+assert_contains "$OUT" "# #explorable — Explorable" && \
+  assert_contains "$OUT" "phenomenon → smallest faithful toy → naive model → its failure → fix → combine → payoff → limits" && \
+  assert_contains "$OUT" "{need, representation, instrument, notice, simplification}" && \
+  assert_contains "$OUT" "TermBeforeNeed" && \
+  assert_contains "$OUT" "AbstractionBeforeInstance" && \
+  assert_contains "$OUT" "DecorativeInteractive" && \
+  assert_contains "$OUT" "UnstatedSimplification" && \
+  assert_contains "$OUT" "UngroundedClaim" && \
+  assert_contains "$OUT" "UndeclaredLimit" && \
+  assert_contains "$OUT" "or is listed there as illustrative" && \
+  assert_contains "$OUT" "6–12 concept sections" && \
+  assert_contains "$OUT" "read EXPLORABLE.md and example-explorable.html" && \
+  assert_contains "$OUT" "then a decision page with each question beside its section" && \
+  assert_contains "$OUT" "each instrument becomes a mermaid diagram" && \
+  assert_contains "$OUT" "# #html — HTML" && pass
+
+run_test "explorable_under_frame_explains_from_conversation"
+OUT=$(invoke "#=frame #explorable" | context_of)
+assert_contains "$OUT" "# #explorable — Explorable" && \
+  assert_contains "$OUT" "Mode that excludes Research: explain only from what the conversation holds, and say so in the first line." && pass
+
 run_test "finding_injects_section_rules"
 OUT=$(invoke "#finding" | context_of)
 assert_contains "$OUT" "OverwrittenSection" && \
