@@ -158,6 +158,7 @@ Each is orthogonal to qualities and to each other. Some pair naturally with spec
 | `#explain-first`    | Teach by explaining   | Explanation → code → comprehension check cycle             |
 | `#zoom`             | Explanation order     | Coarse to fine, one level per step; deeper content parked under "Deeper" |
 | `#delta`            | Change explanation    | Motivation, before/after, intent groups, reading order — not file order |
+| `#explorable`       | Deep explainer        | Phenomenon → toy → naive model breaks → fix → payoff → limits; an instrument per concept (an interactive page with `#html`) |
 | `#ledger`           | Neutral collation     | Restate explorations into one sourced ledger file, lineage asked |
 | `#independence`     | Correlation control   | Count independent reasons, not agreeing voices             |
 | `#disagreement-map` | Conflict typing       | Factual → Crux, values → user, framing → frame             |
