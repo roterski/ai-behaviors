@@ -18,6 +18,16 @@ This behavior owns what each question offers and how the LLM reads your answers.
 - A question with no choice and no note is deferred: the LLM names it in its reply and doesn't act on it.
 - A note alone is your answer. If it contradicts your choice, the LLM asks before acting.
 
+## Code links
+
+Code on a page links to the code it came from.
+The LLM declares each repo it read and marks every code block and inline mention with its file and lines, following html-channel's `CONVENTION.md`.
+A collapsed bar at the top of the page lets you open the code in VS Code or on GitHub, copy its path, and point each repo at your own checkout.
+Your settings stay in your browser, per page, and "Save as default" shares them with other pages of the same repo.
+
+When you click Done, the LLM also gets the checkout you used for each repo.
+If it differs from the one the LLM read, the LLM names both and asks whether that's expected and whether to switch to yours, before it acts on your answers.
+
 ## How it reaches the page
 
 - **MCP tools available** (`channel_setup`, `check_page`, `get_decisions`): the LLM writes the page, renders it in headless Chrome to catch errors and check both color schemes, gives you the URL and ends its turn. After you click Done and reply, it reads your answers with `get_decisions`.

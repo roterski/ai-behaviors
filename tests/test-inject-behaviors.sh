@@ -937,7 +937,9 @@ assert_contains "$OUT" "# #html — HTML" && \
   assert_contains "$OUT" "ActingOnDeferred" && \
   assert_contains "$OUT" "data-decision=\"ID-note\"" && \
   assert_contains "$OUT" "htmlChannel.record(id,null)" && \
-  assert_contains "$OUT" "channel_setup → write the page → check_page → give the URL and end the turn" && pass
+  assert_contains "$OUT" "channel_setup → write the page → check_page → give the URL and end the turn" && \
+  assert_contains "$OUT" "except status, notes, *-note and sources" && \
+  assert_contains "$OUT" "for each repo with overridden=true" && pass
 
 run_test "explorable_injects_arc_contract_and_channels"
 OUT=$(invoke "#=research #explorable #html" | context_of)
