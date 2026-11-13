@@ -68,6 +68,7 @@ Older versions lack EXPLORABLE.md, the controls and the checks. Update with `bbi
 - `#=tour` — a codebase subsystem explained with instruments
 - `#=mentor` — teaching, with the explorable as the lesson
 - `#epistemic` — confidence labels on claims, for topics where sources disagree
+- `#statecharts` — concepts that are modes and events get a statechart you drive as their instrument
 
 ## Doesn't combine well with
 
