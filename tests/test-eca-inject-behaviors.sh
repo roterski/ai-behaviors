@@ -324,6 +324,31 @@ assert_contains "$OUT" "# #html — HTML" && \
   assert_contains "$OUT" "htmlChannel.record(id,null)" && \
   assert_contains "$OUT" "channel_setup → write the page → check_page → give the URL and end the turn" && pass
 
+run_test "eca_statecharts_injects_rules_and_channels"
+OUT=$(invoke "#statecharts" | context_of)
+assert_contains "$OUT" "# #statecharts — Statecharts" && \
+  assert_contains "$OUT" "ForcedChart" && \
+  assert_contains "$OUT" "UngroundedState" && \
+  assert_contains "$OUT" "UnlabeledInference" && \
+  assert_contains "$OUT" "IgnoredExplicitMachine" && \
+  assert_contains "$OUT" "If nothing is stateful, say so and draw no chart." && \
+  assert_contains "$OUT" "label the chart inferred, and state the basis" && \
+  assert_contains "$OUT" "cites the code it lives in, or is marked illustrative" && \
+  assert_contains "$OUT" "one core machine refined step by step" && \
+  assert_contains "$OUT" "Without #html: a mermaid stateDiagram-v2 per chart" && pass
+
+run_test "eca_statecharts_with_tour_and_html"
+OUT=$(invoke "#=tour #statecharts #html" | context_of)
+assert_contains "$OUT" "# #statecharts — Statecharts" && \
+  assert_contains "$OUT" "read html-channel's STATECHART.md first" && \
+  assert_contains "$OUT" "# #html — HTML" && pass
+
+run_test "eca_statecharts_with_explorable"
+OUT=$(invoke "#explorable #statecharts" | context_of)
+assert_contains "$OUT" "# #statecharts — Statecharts" && \
+  assert_contains "$OUT" "# #explorable — Explorable" && \
+  assert_contains "$OUT" "the charts are the concept sections' instruments" && pass
+
 run_test "eca_explorable_injects_arc_contract_and_channels"
 OUT=$(invoke "#=research #explorable #html" | context_of)
 assert_contains "$OUT" "# #explorable — Explorable" && \
