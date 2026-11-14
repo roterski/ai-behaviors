@@ -937,7 +937,7 @@ assert_contains "$OUT" "# #html — HTML" && \
   assert_contains "$OUT" "ActingOnDeferred" && \
   assert_contains "$OUT" "data-decision=\"ID-note\"" && \
   assert_contains "$OUT" "htmlChannel.record(id,null)" && \
-  assert_contains "$OUT" "channel_setup → write the page → check_page → give the URL and end the turn" && \
+  assert_contains "$OUT" "channel_setup → write the page → check_page → run \`html-channel wait <session>/<page>\` as a background command → give the URL in your final message → end the turn" && \
   assert_contains "$OUT" "except status, notes, *-note and sources" && \
   assert_contains "$OUT" "for each repo with overridden=true" && pass
 
