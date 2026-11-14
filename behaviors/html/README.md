@@ -6,7 +6,7 @@ Present anything that needs your input as an interactive local HTML page instead
 
 `#html` is an output-channel modifier. It doesn't change how the LLM thinks, only where its questions and output go.
 Instead of a markdown list of options, the LLM writes an [html-channel](https://github.com/roterski/html-channel) page into `<project>/ai/html-channel/<session>/<page>.html`.
-You open it in a browser, answer with buttons and fields, and click Done. The LLM then reads your answers back.
+You open it in a browser, answer with buttons and fields, and click Done. The click wakes the LLM, which then reads your answers back.
 
 How a page is built lives in html-channel's `CONVENTION.md`, not here, so the two can't drift apart.
 This behavior owns what each question offers and how the LLM reads your answers.
@@ -30,12 +30,19 @@ If it differs from the one the LLM read, the LLM names both and asks whether tha
 
 ## How it reaches the page
 
-- **MCP tools available** (`channel_setup`, `check_page`, `get_decisions`): the LLM writes the page, renders it in headless Chrome to catch errors and check both color schemes, gives you the URL and ends its turn. After you click Done and reply, it reads your answers with `get_decisions`.
-  If you clicked a Deeper button instead, the LLM expands what you asked for in a new revision and gives you the URL again.
-- **CLI only**: the LLM serves the page with `html-channel serve`, checks it with `html-channel check`, gives you the URL, and reads your answers with `html-channel decisions` after you say "done".
+- **MCP tools available** (`channel_setup`, `check_page`, `get_decisions`): the LLM writes the page and renders it in headless Chrome to catch errors and check both color schemes.
+  Then it starts `html-channel wait` as a background command and ends its turn with the URL, so the chat stays free: you can ask about the page or have it reshaped before you click Done.
+  The URL comes last because some clients hide text written between tool calls.
+  Clicking Done ends the wait, and its exit wakes the LLM with your answers. You don't need to type "done".
+  If you clicked a Deeper button instead, the LLM expands what you asked for in a new revision, waits again and gives you the URL again.
+  Every rewrite of the page ends the old wait and starts a new one, so only Done on the latest revision counts.
+- **CLI only**: the LLM serves the page with `html-channel serve`, checks it with `html-channel check`, starts `html-channel wait` the same way, and gives you the URL.
+- **No background wake** (a client that can't wake the LLM when a background command exits): you say "done" in chat, and the LLM reads your answers with `get_decisions` or `html-channel decisions`.
 - **Neither installed**: the LLM says so and falls back to markdown.
 
 `./install` and `./eca-install` install the `html-channel` command with `bbin` when it's on your PATH. Otherwise they print the command to run.
+`#html` needs html-channel 0.4.0 or newer for the wait (`html-channel version`).
+Update with `bbin install io.github.roterski/html-channel`.
 
 ## Common prompts
 
