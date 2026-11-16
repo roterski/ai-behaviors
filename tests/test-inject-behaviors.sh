@@ -989,6 +989,25 @@ assert_contains "$OUT" "# #statecharts — Statecharts" && \
   assert_contains "$OUT" "# #explorable — Explorable" && \
   assert_contains "$OUT" "the charts are the concept sections' instruments" && pass
 
+run_test "atlas_injects_rules_and_channels"
+OUT=$(invoke "#atlas" | context_of)
+assert_contains "$OUT" "# #atlas — Atlas" && \
+  assert_contains "$OUT" "EmptyChunk" && \
+  assert_contains "$OUT" "OverBranching" && \
+  assert_contains "$OUT" "MixedLadder" && \
+  assert_contains "$OUT" "PrerequisiteAfterUse" && \
+  assert_contains "$OUT" "DriftingRepresentation" && \
+  assert_contains "$OUT" "audience and goal inferred and stated, never asked for" && \
+  assert_contains "$OUT" "Without #html: one nested markdown outline" && pass
+
+run_test "atlas_with_html_never_rewrites_the_page"
+OUT=$(invoke "#=research #atlas #html" | context_of)
+assert_contains "$OUT" "# #atlas — Atlas" && \
+  assert_contains "$OUT" "run \`concept-atlas guide\` and follow it" && \
+  assert_contains "$OUT" "# #html — HTML" && \
+  assert_contains "$OUT" "With #atlas: the page is concept-atlas's viewer, never yours to write or rewrite" && \
+  assert_contains "$OUT" "wait with \`concept-atlas wait <slug>\` in place of \`html-channel wait\`" && pass
+
 run_test "finding_injects_section_rules"
 OUT=$(invoke "#finding" | context_of)
 assert_contains "$OUT" "OverwrittenSection" && \
