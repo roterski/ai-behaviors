@@ -49,6 +49,19 @@ else
   echo "    bbin install io.github.roterski/html-channel"
 fi
 
+# --- concept-atlas (used by #atlas with #html) ---
+if command -v bbin >/dev/null 2>&1; then
+  if out=$(bbin install io.github.roterski/concept-atlas 2>&1); then
+    echo "  installed: concept-atlas (for #atlas)"
+  else
+    echo "  warning: concept-atlas install failed; #atlas falls back to a markdown outline until it succeeds:"
+    echo "$out" | tail -3 | sed 's/^/    /'
+  fi
+else
+  echo "  skipped: concept-atlas (for #atlas) needs bbin. Install bbin, then run:"
+  echo "    bbin install io.github.roterski/concept-atlas"
+fi
+
 echo ""
 echo "Done. Use #hashtags in Claude Code prompts:"
 echo "  Fix the auth bug #=code #challenge"
