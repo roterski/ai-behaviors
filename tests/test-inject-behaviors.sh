@@ -936,9 +936,12 @@ assert_contains "$OUT" "# #html — HTML" && \
   assert_contains "$OUT" "UnclearableAnswer" && \
   assert_contains "$OUT" "ActingOnDeferred" && \
   assert_contains "$OUT" "data-decision=\"ID-note\"" && \
-  assert_contains "$OUT" "htmlChannel.record(id,null)" && \
+  assert_not_contains "$OUT" "htmlChannel.record(id,null)" && \
+  assert_contains "$OUT" "Show code changes as diffs, not before/after copies, including edits you propose before applying them" && \
   assert_contains "$OUT" "channel_setup → write the page → check_page → run \`html-channel wait <session>/<page>\` as a background command → give the URL in your final message → end the turn" && \
-  assert_contains "$OUT" "except status, notes, *-note and sources" && \
+  assert_contains "$OUT" "except status, notes, *-note, sources and hunks" && \
+  assert_contains "$OUT" "name a hunk by its file and lines, never by its KEY" && \
+  assert_contains "$OUT" "stale; name it by its answer and note, don't act on it" && \
   assert_contains "$OUT" "for each repo with overridden=true" && pass
 
 run_test "explorable_injects_arc_contract_and_channels"

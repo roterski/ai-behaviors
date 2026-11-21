@@ -28,6 +28,16 @@ Your settings stay in your browser, per page, and "Save as default" shares them 
 When you click Done, the LLM also gets the checkout you used for each repo.
 If it differs from the one the LLM read, the LLM names both and asks whether that's expected and whether to switch to yours, before it acts on your answers.
 
+## Code and diffs
+
+Code on a page is colored by its language, which the LLM names or which comes from the file it links to.
+Changes to code are shown as diffs, not as before and after copies: changes already made as `git diff` output, and edits the LLM proposes as their old and new text.
+A diff shows a split view when there's room and marks the changed words. For a proposed edit, you can also open the unchanged lines around each change.
+
+When you review changes, each hunk can carry its own choices (accept or reject, say), with Clear and a note like any other question.
+On Done, the LLM also gets which file and lines each hunk covers, and names hunks that way in its reply.
+An answer carries over to a new revision of the page as long as its hunk didn't change. When the hunk did change, the LLM treats your old answer as stale: it names it and doesn't act on it.
+
 ## How it reaches the page
 
 - **MCP tools available** (`channel_setup`, `check_page`, `get_decisions`): the LLM writes the page and renders it in headless Chrome to catch errors and check both color schemes.
@@ -41,7 +51,7 @@ If it differs from the one the LLM read, the LLM names both and asks whether tha
 - **Neither installed**: the LLM says so and falls back to markdown.
 
 `./install` and `./eca-install` install the `html-channel` command with `bbin` when it's on your PATH. Otherwise they print the command to run.
-`#html` needs html-channel 0.4.0 or newer for the wait (`html-channel version`).
+`#html` needs html-channel 0.5.0 or newer (`html-channel version`).
 Update with `bbin install io.github.roterski/html-channel`.
 
 ## Common prompts
