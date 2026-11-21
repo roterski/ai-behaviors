@@ -17,6 +17,7 @@ This behavior owns what each question offers and how the LLM reads your answers.
 - Clear, or clicking the chosen option again, takes back a choice and keeps your note.
 - A question with no choice and no note is deferred: the LLM names it in its reply and doesn't act on it.
 - A note alone is your answer. If it contradicts your choice, the LLM asks before acting.
+- A question another answer made moot is recorded as `moot`: the LLM names it as moot and doesn't act on it. With `#decision-ready`, the page greys such questions out as you answer. Clear on one means "not moot", so the LLM treats it as deferred; a note on one makes the LLM ask before acting.
 
 ## Code links
 
@@ -60,6 +61,7 @@ Update with `bbin install io.github.roterski/html-channel`.
 - `#=design #html`: candidates side by side, and you pick one on the page
 - `#=spec #html`: open questions as fields
 - `#=tour #zoom #html`: a code tour, one zoom level per page revision; Deeper buttons pick where to zoom next
+- `#Design #html #decision-ready`: every option with its full case; linked questions grey out as you answer
 
 ## Doesn't combine well with
 

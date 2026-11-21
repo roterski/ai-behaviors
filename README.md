@@ -161,6 +161,7 @@ Each is orthogonal to qualities and to each other. Some pair naturally with spec
 | `#explorable`       | Deep explainer        | Phenomenon → toy → naive model breaks → fix → payoff → limits; an instrument per concept (an interactive page with `#html`) |
 | `#statecharts`      | State as a chart      | Modes and the events between them as a statechart, grounded in code; driven on a page with `#html` |
 | `#atlas`            | Explanation as a map  | A tree of small nodes, each with a gist and several representations; walked and grown in a browser with `#html` |
+| `#decision-ready`   | Decision context      | Every choice with context, alternatives and links; each option with pick-if, cost if wrong, confidence, source and its own diff |
 | `#ledger`           | Neutral collation     | Restate explorations into one sourced ledger file, lineage asked |
 | `#independence`     | Correlation control   | Count independent reasons, not agreeing voices             |
 | `#disagreement-map` | Conflict typing       | Factual → Crux, values → user, framing → frame             |

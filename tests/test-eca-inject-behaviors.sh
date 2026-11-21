@@ -351,6 +351,32 @@ assert_contains "$OUT" "# #statecharts — Statecharts" && \
   assert_contains "$OUT" "# #explorable — Explorable" && \
   assert_contains "$OUT" "the charts are the concept sections' instruments" && pass
 
+run_test "eca_decision_ready_injects_rules"
+OUT=$(invoke "#decision-ready" | context_of)
+assert_contains "$OUT" "# #decision-ready — Decision-ready" && \
+  assert_contains "$OUT" "BareOption" && \
+  assert_contains "$OUT" "LeanWhereForbidden" && \
+  assert_contains "$OUT" "Mode that excludes Recommendations, Suggestions, Solutions or Opinions: no lean." && \
+  assert_contains "$OUT" "confidence {confirmed, probable, uncertain, unknown}" && \
+  assert_contains "$OUT" "shows its own diff, against the same base as the other options of its question" && \
+  assert_contains "$OUT" "in markdown, a fenced diff block" && \
+  assert_contains "$OUT" "With #epistemic: one confidence label serves both." && pass
+
+run_test "eca_decision_ready_with_html"
+OUT=$(invoke "#Design #html #decision-ready" | context_of)
+assert_contains "$OUT" "# #decision-ready — Decision-ready" && \
+  assert_contains "$OUT" "# #html — HTML" && \
+  assert_contains "$OUT" "\"moot\" = another answer made the question moot: name it as moot, don't act on it; with a note: ask before acting." && \
+  assert_contains "$OUT" "With #decision-ready: links between questions are page script, driven by data-state" && \
+  assert_contains "$OUT" "restored answers arrive asynchronously, as \"saved\" or \"carried\", not at load" && \
+  assert_contains "$OUT" "When a controlling question's data-state becomes \"pending\", compare its answer with the one at its previous data-state change" && \
+  assert_not_contains "$OUT" "on load and on every change" && \
+  assert_not_contains "$OUT" "Record only on a change event" && \
+  assert_contains "$OUT" "blank a moot checkbox or text control" && \
+  assert_contains "$OUT" "entry absent or a carried answer → treat it as moot and say so; null (cleared) → deferred" && \
+  assert_contains "$OUT" "A diff with hunk choices is one question" && \
+  assert_not_contains "$OUT" "htmlChannel.record(id,null)" && pass
+
 run_test "eca_atlas_injects_rules_and_channels"
 OUT=$(invoke "#atlas" | context_of)
 assert_contains "$OUT" "# #atlas — Atlas" && \

@@ -1,0 +1,22 @@
+--- a/hooks/inject-behaviors.sh
++++ b/hooks/inject-behaviors.sh
+@@ -53,7 +53,7 @@
+   fi
+ }
+ 
+-# Expand hashtags, resolving composites recursively
++# Expand hashtags, resolving nested composites recursively
+ # Sets globals: EXPAND_LEAF_TAGS, EXPAND_MISSING, _MODE_SEEN
+ # Writes composite custom texts to $_CUSTOM_DIR/<name>
+ # On second operating mode (#=*), resets EXPAND_LEAF_TAGS and _CUSTOM_DIR (last mode wins)
+@@ -79,8 +79,8 @@
+         echo "Cycle detected: $tag" >&2
+         exit 2
+       fi
+-      if [ "$depth" -ge 8 ]; then
+-        echo "Nesting too deep at $tag (max depth 8)" >&2
++      if [ "$depth" -ge 80 ]; then
++        echo "Nesting too deep at $tag (max depth 80)" >&2
+         exit 2
+       fi
+       local composed

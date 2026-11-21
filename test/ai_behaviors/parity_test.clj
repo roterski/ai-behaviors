@@ -26,7 +26,8 @@
    "#=tour" "#Tour" "#zoom" "#delta" "#Tour #delta" "#Tour #proceed" "#EXPLAIN #Tour"
    "#html" "#=review #html" "#Design #html" "#EXPLAIN #html"
    "#explorable" "#=research #explorable #html" "#=frame #explorable" "#EXPLAIN #explorable"
-   "#statecharts" "#=tour #statecharts #html" "#EXPLAIN #statecharts"])
+   "#statecharts" "#=tour #statecharts #html" "#EXPLAIN #statecharts"
+   "#decision-ready" "#Design #html #decision-ready" "#=research #decision-ready" "#EXPLAIN #decision-ready"])
 
 (defn- hook-context
   "additionalContext from hook `script` fed `payload`, with a fresh HOME and XDG dir."
