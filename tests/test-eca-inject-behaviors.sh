@@ -356,6 +356,7 @@ OUT=$(invoke "#decision-ready" | context_of)
 assert_contains "$OUT" "# #decision-ready — Decision-ready" && \
   assert_contains "$OUT" "BareOption" && \
   assert_contains "$OUT" "LeanWhereForbidden" && \
+  assert_contains "$OUT" "naming the other question and its answer by their words, a label only beside them" && \
   assert_contains "$OUT" "Mode that excludes Recommendations, Suggestions, Solutions or Opinions: no lean." && \
   assert_contains "$OUT" "confidence {confirmed, probable, uncertain, unknown}" && \
   assert_contains "$OUT" "shows its own diff, against the same base as the other options of its question" && \
