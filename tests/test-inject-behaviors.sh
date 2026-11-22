@@ -939,7 +939,7 @@ assert_contains "$OUT" "# #html — HTML" && \
   assert_not_contains "$OUT" "htmlChannel.record(id,null)" && \
   assert_contains "$OUT" "Show code changes as diffs, not before/after copies, including edits you propose before applying them" && \
   assert_contains "$OUT" "channel_setup → write the page → check_page → run \`html-channel wait <session>/<page>\` as a background command → give the URL lines html-channel returns in your final message → end the turn" && \
-  assert_contains "$OUT" "except status, notes, *-note, sources and hunks" && \
+  assert_contains "$OUT" "except status, notes, *-note, sources, hunks and moot" && \
   assert_contains "$OUT" "name a hunk by its file and lines, never by its KEY" && \
   assert_contains "$OUT" "stale; name it by its answer and note, don't act on it" && \
   assert_contains "$OUT" "for each repo with overridden=true" && pass
@@ -1019,16 +1019,15 @@ run_test "decision_ready_with_html"
 OUT=$(invoke "#Design #html #decision-ready" | context_of)
 assert_contains "$OUT" "# #decision-ready — Decision-ready" && \
   assert_contains "$OUT" "# #html — HTML" && \
-  assert_contains "$OUT" "\"moot\" = another answer made the question moot: name it as moot, don't act on it; with a note: ask before acting." && \
-  assert_contains "$OUT" "With #decision-ready: links between questions are page script, driven by data-state" && \
-  assert_contains "$OUT" "not disabled, so Clear and its note still work" && \
-  assert_contains "$OUT" "change events miss buttons and Clear, and restored answers arrive asynchronously, as \"saved\" or \"carried\", not at load" && \
-  assert_contains "$OUT" "On every data-state change, grey moot questions from the controls' current state" && \
-  assert_contains "$OUT" "When a controlling question's data-state becomes \"pending\", compare its answer with the one at its previous data-state change" && \
-  assert_not_contains "$OUT" "Record only on a change event" && \
-  assert_not_contains "$OUT" "on load and on every change" && \
-  assert_contains "$OUT" "blank a moot checkbox or text control: untick it, empty it" && \
-  assert_contains "$OUT" "entry absent or a carried answer → treat it as moot and say so; null (cleared) → deferred; an answer from this revision → ask before acting." && \
+  assert_contains "$OUT" "Question = each data-decision ID except status, notes, *-note, sources, hunks and moot." && \
+  assert_contains "$OUT" "moot (the page's links that held, recorded on Done): a key ID → another answer made that question moot: name it as moot, not deferred, and don't act on its answer; with a note: ask before acting." && \
+  assert_contains "$OUT" "A key ID=VALUE whose option is the answer → the reader chose an option another answer rules out: ask before acting." && \
+  assert_contains "$OUT" "With #decision-ready: links between questions are CONVENTION's Moot section, never page script" && \
+  assert_contains "$OUT" "With #html: a link that makes a question or option moot is its entry in the page's link list" && \
+  assert_contains "$OUT" "write no \"Links:\" text for it" && \
+  assert_not_contains "$OUT" "data-state" && \
+  assert_not_contains "$OUT" "htmlChannel.record(ID, \"moot\")" && \
+  assert_not_contains "$OUT" "\"moot\" = another answer made the question moot" && \
   assert_contains "$OUT" "A diff with hunk choices is one question" && \
   assert_contains "$OUT" "naming it by file and lines" && \
   assert_not_contains "$OUT" "htmlChannel.record(id,null)" && pass

@@ -17,7 +17,7 @@ This behavior owns what each question offers and how the LLM reads your answers.
 - Clear, or clicking the chosen option again, takes back a choice and keeps your note.
 - A question with no choice and no note is deferred: the LLM names it in its reply and doesn't act on it.
 - A note alone is your answer. If it contradicts your choice, the LLM asks before acting.
-- A question another answer made moot is recorded as `moot`: the LLM names it as moot and doesn't act on it. With `#decision-ready`, the page greys such questions out as you answer. Clear on one means "not moot", so the LLM treats it as deferred; a note on one makes the LLM ask before acting.
+- With `#decision-ready`, a question or option another answer makes moot greys out as you answer: a moot question folds to its heading and the reason, with a Show button to open it, and its answer stays as you left it. On Done the page records what was moot, with the reasons: the LLM names those questions as moot and doesn't act on their answers. A note on one, or a moot option you chose anyway, makes the LLM ask before acting.
 
 ## Code links
 
@@ -52,7 +52,7 @@ An answer carries over to a new revision of the page as long as its hunk didn't 
 - **Neither installed**: the LLM says so and falls back to markdown.
 
 `./install` and `./eca-install` install the `html-channel` command with `bbin` when it's on your PATH. Otherwise they print the command to run.
-`#html` needs html-channel 0.5.0 or newer (`html-channel version`).
+`#html` needs html-channel 0.7.0 or newer (`html-channel version`).
 Update with `bbin install io.github.roterski/html-channel`.
 
 ## Common prompts

@@ -367,14 +367,11 @@ run_test "eca_decision_ready_with_html"
 OUT=$(invoke "#Design #html #decision-ready" | context_of)
 assert_contains "$OUT" "# #decision-ready — Decision-ready" && \
   assert_contains "$OUT" "# #html — HTML" && \
-  assert_contains "$OUT" "\"moot\" = another answer made the question moot: name it as moot, don't act on it; with a note: ask before acting." && \
-  assert_contains "$OUT" "With #decision-ready: links between questions are page script, driven by data-state" && \
-  assert_contains "$OUT" "restored answers arrive asynchronously, as \"saved\" or \"carried\", not at load" && \
-  assert_contains "$OUT" "When a controlling question's data-state becomes \"pending\", compare its answer with the one at its previous data-state change" && \
-  assert_not_contains "$OUT" "on load and on every change" && \
-  assert_not_contains "$OUT" "Record only on a change event" && \
-  assert_contains "$OUT" "blank a moot checkbox or text control" && \
-  assert_contains "$OUT" "entry absent or a carried answer → treat it as moot and say so; null (cleared) → deferred" && \
+  assert_contains "$OUT" "sources, hunks and moot." && \
+  assert_contains "$OUT" "moot (the page's links that held, recorded on Done): a key ID → another answer made that question moot" && \
+  assert_contains "$OUT" "With #decision-ready: links between questions are CONVENTION's Moot section, never page script" && \
+  assert_contains "$OUT" "With #html: a link that makes a question or option moot is its entry in the page's link list" && \
+  assert_not_contains "$OUT" "data-state" && \
   assert_contains "$OUT" "A diff with hunk choices is one question" && \
   assert_not_contains "$OUT" "htmlChannel.record(id,null)" && pass
 

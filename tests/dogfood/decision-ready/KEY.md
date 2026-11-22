@@ -2,13 +2,13 @@
 
 Do not let the session under test read this file.
 Each run below starts from a fresh session in this repo.
-Runs 2 and 5 need html-channel 0.5.0 or newer and a browser.
+Runs 2 and 5 need html-channel 0.7.0 or newer and a browser.
 
 ## Plants
 
 | ID | Plant | Where |
 |---|---|---|
-| P1 | Questions that one answer makes moot: an in-process cache has no eviction policy and no TTL. The controlling question gets buttons (no change event), and one dependent is a checkbox (shows "moot" as ticked unless blanked) | run 2 |
+| P1 | Questions that one answer makes moot: an in-process cache has no eviction policy and no TTL. The controlling question gets buttons, and one dependent is a checkbox | run 2 |
 | P2 | A mode that forbids recommendations (`#=research`) next to one that allows them (`#=design`), on the same prompt | runs 1, 3 |
 | P3 | `#Research` carries `#epistemic`, which labels every claim on its own | run 1 |
 | P4 | A task with no open choice | run 4 |
@@ -31,19 +31,20 @@ Check answers with `html-channel decisions <session>/<page>` after each step:
 1. Pick in-process.
 2. Click in-process again, which takes the answer back.
 3. Pick in-process, then click Q1's Clear.
-4. Pick in-process, then reload the page. Then pick Redis, and pick in-process again.
-5. Clear Q2, wait 2 s, then reload.
-6. In chat: "Add a question: the TTL in seconds, which only matters for Redis." On the new revision, leave Q1 as it is, so the new question's link is newer than the answer.
+4. Pick in-process, open Q2 with its Show button, pick an eviction policy, then reload.
+5. Pick Redis, then pick in-process again.
+6. In chat: "Add a question: the TTL in seconds, which only matters for Redis." On the new revision, leave Q1 as it is, so in-process is carried.
 7. Write "keep the TTL anyway" in Q3's note, then click Done.
 
-- M1: after step 1, Q2 and Q3 are greyed out, not disabled, and both are `"moot"`; Q3's box is unticked.
-- M2: after step 2, Q1, Q2 and Q3 are `null`, and Q2 and Q3 are no longer greyed out.
+- M1: after step 1, Q2 and Q3 are greyed and folded to their headings, each with a reason line and a Show button, not disabled; nothing is recorded for Q2 or Q3, and Q3's box is unticked.
+- M2: after step 2, Q1 is `null`, and Q2 and Q3 unfold.
 - M3: after step 3, the same as M2: Clear on the controlling question takes the mootness back.
-- M4: after the reload in step 4, Q2 and Q3 are still `"moot"` and greyed out, Q3's box is still unticked, and nothing new was recorded on load. Picking Redis makes both `null` and no longer greyed; picking in-process makes both `"moot"` again.
-- M5: after step 5, Q2 is `null` and still greyed out, before and after the reload.
-- M6: after step 6, the TTL-seconds question is greyed out with nothing recorded.
-- M7: the reply calls Q2 deferred (cleared, so not moot) and the TTL-seconds question moot (by the links, never recorded), and asks about Q3's note before acting on it.
-- M8: the page has a lean on each question, and each option has pick-if, if-wrong, confidence and source.
+- M4: after step 4, Q2's pick is recorded although Q2 is moot; after the reload, Q2 and Q3 are folded again and nothing new was recorded on load.
+- M5: after step 5, picking Redis unfolds Q2 and Q3, with Q2 showing the pick from step 4; picking in-process folds them again.
+- M6: after step 6, the TTL-seconds question is folded on the new revision, with nothing recorded.
+- M7: Done records `moot` with Q2, Q3 and the TTL-seconds question, each with the reason the page showed; the reply names those three moot, doesn't act on Q2's pick, and asks about Q3's note before acting on it.
+- M8: the page has no script for its links: one `hc-moot` list, a `data-question` container around Q2, Q3 and the TTL-seconds question, and no "Links:" text for those links.
+- M9: the page has a lean on each question, and each option has pick-if, if-wrong, confidence and source.
 
 ## Run 3: lean only where allowed (P2)
 

@@ -41,10 +41,10 @@ The labels are the same with or without `#epistemic` and `#provenance`, so outpu
 
 | With | Questions and options are |
 |---|---|
-| `#html` | an html-channel page. Code changes are kit diffs. When an answer makes another question moot, the page greys that question out and records `moot`; Clear on it means "not moot". A diff with per-hunk choices is one question, with its context, lean and links above the diff |
+| `#html` | an html-channel page. Code changes are kit diffs. When an answer makes another question or option moot, the page greys it out as you answer (a question folds to its heading and the reason) and records `moot` on Done. A diff with per-hunk choices is one question, with its context, lean and links above the diff |
 | neither | markdown: one block per question, one labelled block per option. Code changes are fenced `diff` blocks |
 
-How a page is built lives in html-channel's `CONVENTION.md`. The moot and per-hunk rules live in `#html`'s prompt, because only pages have them.
+How a page is built, its links included, lives in html-channel's `CONVENTION.md`. How the LLM reads `moot` and per-hunk answers lives in `#html`'s prompt, because only pages have them.
 
 ## With other tags
 
@@ -60,7 +60,7 @@ Overlapping tags don't double the output: each pair gives one statement.
 
 ## Requires
 
-With `#html`: html-channel 0.5.0 or newer, the same as `#html` itself (`html-channel version`).
+With `#html`: html-channel 0.7.0 or newer, the same as `#html` itself (`html-channel version`).
 Update with `bbin install io.github.roterski/html-channel`.
 
 ## Common prompts
@@ -77,4 +77,4 @@ Update with `bbin install io.github.roterski/html-channel`.
 ## Known limitations
 
 - Nothing checks the elements against the code or the facts. Confidence and source labels make the basis visible, which is all the tag can do.
-- A link that appears only in a later page revision isn't recorded as `moot`: the page records only when you change an answer. The LLM works it out from the links it wrote and says so.
+- Options inside a `<select>`, checkboxes and text fields can't be moot one by one, and a link can't match an answer that contains a space, `=` or `|`.

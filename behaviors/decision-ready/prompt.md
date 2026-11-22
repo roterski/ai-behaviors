@@ -10,3 +10,4 @@ Lean: each question names the option you'd pick, and why. Mode that excludes Rec
 Markdown: one block per question, one labelled block per option. #concise trims sentences, never elements.
 With #epistemic: one confidence label serves both. With #provenance: one origin serves both. With #downstream: one trace of consequences serves both its orders and if wrong.
 With #evaluate: its item × dimension table is the alternatives, and its rejected items are the "not offered". With #assumptions: choices you made stay in its list; only choices put to the user appear here.
+With #html: a link that makes a question or option moot is its entry in the page's link list, with the link's sentence as its reason, shown only while the link holds; write no "Links:" text for it. Only a relation nothing on the page can grey out is written as a link.
