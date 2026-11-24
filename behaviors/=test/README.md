@@ -22,6 +22,7 @@ Testing is adversarial by nature. The code is guilty until proven innocent. This
 - `#deep` — exhaustive testing, leave no path untested
 - `#challenge` — find the bugs nobody imagined
 - `#simulate` — trace execution to find state-dependent bugs
+- `#decision-ready` — each bug report offers its fixes as options
 
 ## Common prompts
 

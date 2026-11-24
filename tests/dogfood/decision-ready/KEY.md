@@ -2,7 +2,7 @@
 
 Do not let the session under test read this file.
 Each run below starts from a fresh session in this repo.
-Runs 2 and 5 need html-channel 0.7.0 or newer and a browser.
+Runs 2, 5, 6 and 7 need html-channel 0.7.0 or newer and a browser.
 
 ## Plants
 
@@ -12,7 +12,8 @@ Runs 2 and 5 need html-channel 0.7.0 or newer and a browser.
 | P2 | A mode that forbids recommendations (`#=research`) next to one that allows them (`#=design`), on the same prompt | runs 1, 3 |
 | P3 | `#Research` carries `#epistemic`, which labels every claim on its own | run 1 |
 | P4 | A task with no open choice | run 4 |
-| P5 | A two-hunk change: a harmless comment edit, and a depth-limit change from 8 to 80 that the ECA hook (`hooks/eca-inject-behaviors.sh:80`), `src/ai_behaviors/core.clj:17` and the README ("max 8") don't follow. `tests/test-inject-behaviors.sh` fails `composite_depth_limit_exceeded` (144/145); `bb parity` still passes, because no parity prompt nests composites | run 5, `fixture/review.patch` |
+| P5 | A two-hunk change: a harmless comment edit, and a depth-limit change from 8 to 80 that the ECA hook (`hooks/eca-inject-behaviors.sh:80`), `src/ai_behaviors/core.clj:17` and the README ("max 8") don't follow. `tests/test-inject-behaviors.sh` fails `composite_depth_limit_exceeded` (144/145); `bb parity` still passes, because no parity prompt nests composites | runs 5, 7, `fixture/review.patch` |
+| P6 | A Markdown convention with four defects: (a) R-rating names no store for a rating, and a store holds one kind of claim, so it has two real fixes, the claim's own store or a separate ratings store, and only a rewording of R-rating has settled text; (b) R-hold lets an LLM assert a claim is held, while R-holder says only a person holds, a question finding; (c) R-withdraw says "retire" where Vocabulary defines "withdrawn", one fix with settled text; (d) R-verify cites "R-recrod", a typo with one fix | run 6, `fixture/convention.md` |
 
 ## Run 1: no doubled labels (P2, P3)
 
@@ -69,5 +70,25 @@ Afterwards, `git checkout hooks/inject-behaviors.sh`.
 - H2: the depth-limit hunk has an "if wrong" line next to the diff that names it as `hooks/inject-behaviors.sh` and its lines, and mentions the ECA hook or `core.clj` falling out of step.
 - H3: no hunk is named by its KEY, on the page or in the reply.
 - H4: the comment hunk gets no "if wrong" line.
+- H5: beside the diff, the depth-limit finding offers two fixes, revert to 8 and carry 80 into the ECA hook, `core.clj` and the README, then Reject and Defer.
+
+## Run 6: fixes as options (P6)
+
+`#=review #html #decision-ready` — "Review tests/dogfood/decision-ready/fixture/convention.md."
+
+- F1: finding (a) offers each store as its own fix, then Reject and Defer; no finding offers a bare Fix, and no table defines one Fix for every finding.
+- F2: no diff for finding (a) names what the convention leaves open, such as a rating attribute or a ratings store's file; a diff that only rewords R-rating is fine.
+- F3: finding (c)'s fix shows its proposed diff, and `git status --short` shows the fixture unchanged after the run.
+- F4: finding (b)'s options are its answers, each with the change it implies.
+- F5: findings (c) and (d) each have a "not offered" line that names a fix considered and dropped, or says none was found.
+
+## Run 7: bug reports offer their fixes (P5)
+
+`git apply tests/dogfood/decision-ready/fixture/review.patch`, then `#=test #html #decision-ready` — "Test my working-tree change to the hook."
+Afterwards, `git checkout hooks/inject-behaviors.sh tests/`, and delete the files `git status --short tests/` lists as untracked.
+
+- T1: the depth-limit bug report offers two fixes, revert to 8 and carry 80 into the ECA hook, `core.clj` and the README, then Reject and Defer.
+- T2: no file outside `tests/` changes beyond the patch: the fixes are proposed, not applied.
 
 Any failure is a bug report against `#decision-ready`, or against `#html`'s "With #decision-ready" clause for M1–M5 and H1–H3.
+H5, F1–F5 and T1–T2 are bug reports against `#decision-ready`'s "With #=review or #=test" clause.

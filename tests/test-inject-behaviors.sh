@@ -1013,7 +1013,10 @@ assert_contains "$OUT" "# #decision-ready — Decision-ready" && \
   assert_contains "$OUT" "With #provenance: one origin serves both." && \
   assert_contains "$OUT" "With #downstream: one trace of consequences" && \
   assert_contains "$OUT" "With #evaluate:" && \
-  assert_contains "$OUT" "With #assumptions:" && pass
+  assert_contains "$OUT" "With #assumptions:" && \
+  assert_contains "$OUT" "With #=review or #=test: a finding's or bug report's alternatives are its fixes" && \
+  assert_contains "$OUT" "never one Fix that stands for several" && \
+  assert_contains "$OUT" "a fix that changes files outside its hunks is its own finding question" && pass
 
 run_test "decision_ready_with_html"
 OUT=$(invoke "#Design #html #decision-ready" | context_of)

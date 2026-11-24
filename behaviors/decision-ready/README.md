@@ -46,6 +46,20 @@ The labels are the same with or without `#epistemic` and `#provenance`, so outpu
 
 How a page is built, its links included, lives in html-channel's `CONVENTION.md`. How the LLM reads `moot` and per-hunk answers lives in `#html`'s prompt, because only pages have them.
 
+## In `#=review` and `#=test`
+
+A finding or bug report is a choice of how to fix it, so its fixes are the options.
+
+| Rule | What you get |
+|---|---|
+| Each fix is its own option | One option per way to fix it, then Reject and Defer. Never a single Fix that leaves the how to your note |
+| Question findings | A finding labelled `question` offers its answers, each with the change it implies |
+| Words, then a diff | Each fix says what changes and where. When its new text follows with no further choice, it also shows the proposed diff, unapplied: the mode still changes nothing. Otherwise it stays in words, even when it changes code |
+| One fix | Its "not offered" names a fix the LLM considered and dropped, or says it found none |
+| Fixes beyond the diff | On a diff with per-hunk choices, a fix that changes files outside its hunks gets its own question beside the diff |
+
+Applying the chosen fix is still `#Code`'s job.
+
 ## With other tags
 
 Overlapping tags don't double the output: each pair gives one statement.
@@ -67,7 +81,8 @@ Update with `bbin install io.github.roterski/html-channel`.
 
 - `#Design #html #decision-ready`: candidates on a page, each with its full case; linked questions grey out as you answer
 - `#Frame #html #decision-ready`: clarifying questions with the context to answer them
-- `#=review #html #decision-ready`: findings and per-hunk choices, framed above each diff
+- `#=review #html #decision-ready`: findings that offer each fix as its own option; per-hunk choices framed above each diff
+- `#=test #decision-ready`: bug reports that offer each fix as its own option
 - `#Spec #decision-ready`: open spec questions in markdown, each option with its cost if wrong
 
 ## Doesn't combine well with

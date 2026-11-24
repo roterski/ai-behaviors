@@ -28,6 +28,7 @@
    "#explorable" "#=research #explorable #html" "#=frame #explorable" "#EXPLAIN #explorable"
    "#statecharts" "#=tour #statecharts #html" "#EXPLAIN #statecharts"
    "#decision-ready" "#Design #html #decision-ready" "#=research #decision-ready" "#EXPLAIN #decision-ready"
+   "#=review #decision-ready" "#=test #html #decision-ready"
    "#offline" "#Design #html #offline" "#EXPLAIN #offline"])
 
 (defn- hook-context

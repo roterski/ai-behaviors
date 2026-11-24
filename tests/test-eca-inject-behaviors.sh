@@ -361,7 +361,8 @@ assert_contains "$OUT" "# #decision-ready — Decision-ready" && \
   assert_contains "$OUT" "confidence {confirmed, probable, uncertain, unknown}" && \
   assert_contains "$OUT" "shows its own diff, against the same base as the other options of its question" && \
   assert_contains "$OUT" "in markdown, a fenced diff block" && \
-  assert_contains "$OUT" "With #epistemic: one confidence label serves both." && pass
+  assert_contains "$OUT" "With #epistemic: one confidence label serves both." && \
+  assert_contains "$OUT" "With #=review or #=test: a finding's or bug report's alternatives are its fixes" && pass
 
 run_test "eca_decision_ready_with_html"
 OUT=$(invoke "#Design #html #decision-ready" | context_of)

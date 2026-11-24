@@ -26,6 +26,7 @@ When findings are delivered, fixes go to `#Code`; structural findings — naming
 - `#simulate` — trace execution paths through reviewed code
 - `#coherence` — surface contradictions and context-misfits as findings
 - `#scope` — flag mis-placed work as a finding class
+- `#decision-ready` — each finding offers its fixes as options
 
 ## Common prompts
 
