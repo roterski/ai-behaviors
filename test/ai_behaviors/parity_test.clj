@@ -27,7 +27,8 @@
    "#html" "#=review #html" "#Design #html" "#EXPLAIN #html"
    "#explorable" "#=research #explorable #html" "#=frame #explorable" "#EXPLAIN #explorable"
    "#statecharts" "#=tour #statecharts #html" "#EXPLAIN #statecharts"
-   "#decision-ready" "#Design #html #decision-ready" "#=research #decision-ready" "#EXPLAIN #decision-ready"])
+   "#decision-ready" "#Design #html #decision-ready" "#=research #decision-ready" "#EXPLAIN #decision-ready"
+   "#offline" "#Design #html #offline" "#EXPLAIN #offline"])
 
 (defn- hook-context
   "additionalContext from hook `script` fed `payload`, with a fresh HOME and XDG dir."

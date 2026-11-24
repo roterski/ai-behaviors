@@ -375,6 +375,34 @@ assert_contains "$OUT" "# #decision-ready — Decision-ready" && \
   assert_contains "$OUT" "A diff with hunk choices is one question" && \
   assert_not_contains "$OUT" "htmlChannel.record(id,null)" && pass
 
+run_test "eca_offline_injects_rules"
+OUT=$(invoke "#offline" | context_of)
+assert_contains "$OUT" "# #offline — Offline" && \
+  assert_contains "$OUT" "WaitingOnACopy" && \
+  assert_contains "$OUT" "URLAsHandOff" && \
+  assert_contains "$OUT" "OfflineWithoutHtml" && \
+  assert_contains "$OUT" "Without #html: say #offline needs #html, then carry on as if #offline were absent." && \
+  assert_not_contains "$OUT" "# #html — HTML" && pass
+
+run_test "eca_offline_with_html"
+OUT=$(invoke "#Design #html #offline" | context_of)
+assert_contains "$OUT" "# #offline — Offline" && \
+  assert_contains "$OUT" "# #html — HTML" && \
+  assert_contains "$OUT" "then export it: export_page, else \`html-channel export <session>/<page>\`" && \
+  assert_contains "$OUT" "Start no wait and give no page URL." && \
+  assert_contains "$OUT" "not on an iPhone" && \
+  assert_contains "$OUT" "No export (html-channel older than 0.9.0): say #offline needs html-channel 0.9.0 or newer" && \
+  assert_contains "$OUT" "With #offline: #offline's export replaces the wait and the URL; follow #offline." && pass
+
+run_test "eca_html_reads_an_answers_file_without_offline"
+OUT=$(invoke "#html" | context_of)
+assert_contains "$OUT" "# #html — HTML" && \
+  assert_not_contains "$OUT" "# #offline — Offline" && \
+  assert_contains "$OUT" "SilentUncheckedAnswers" && \
+  assert_contains "$OUT" "Answers file (the .edn a page's Download answers saves, handed to you): read it with get_decisions with file, else \`html-channel decisions --file <path>\`" && \
+  assert_contains "$OUT" "checked=false: say the answers couldn't be checked against the page, and its reason" && \
+  assert_contains "$OUT" "In an answers file whose respondent isn't \":author\", an overridden repo is that reader's own checkout: name it, don't ask." && pass
+
 run_test "eca_atlas_injects_rules_and_channels"
 OUT=$(invoke "#atlas" | context_of)
 assert_contains "$OUT" "# #atlas — Atlas" && \

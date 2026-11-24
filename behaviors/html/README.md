@@ -19,6 +19,12 @@ This behavior owns what each question offers and how the LLM reads your answers.
 - A note alone is your answer. If it contradicts your choice, the LLM asks before acting.
 - With `#decision-ready`, a question or option another answer makes moot greys out as you answer: a moot question folds to its heading and the reason, with a Show button to open it, and its answer stays as you left it. On Done the page records what was moot, with the reasons: the LLM names those questions as moot and doesn't act on their answers. A note on one, or a moot option you chose anyway, makes the LLM ask before acting.
 
+## Answers sent as a file
+
+A page's **Download answers** button (html-channel 0.8.0+) saves its answers as an `.edn` file, for a reader who can't reach the server; `#offline` makes a copy of the page for such a reader.
+Hand the file to any session with `#html`: the LLM reads it with `html-channel decisions --file` and the same rules as a page's answers.
+It names who answered, says when the answers couldn't be checked against the page, and treats a re-pointed code-link root in someone else's file as their own checkout, without asking you about it.
+
 ## Code links
 
 Code on a page links to the code it came from.
@@ -62,6 +68,7 @@ Update with `bbin install io.github.roterski/html-channel`.
 - `#=spec #html`: open questions as fields
 - `#=tour #zoom #html`: a code tour, one zoom level per page revision; Deeper buttons pick where to zoom next
 - `#Design #html #decision-ready`: every option with its full case; linked questions grey out as you answer
+- `#=spec #html #offline`: the page as a file for a teammate the server can't reach; their answers come back as an `.edn` (see `#offline`)
 
 ## Doesn't combine well with
 

@@ -239,6 +239,7 @@ Output-channel modifiers change where the output goes, not how the LLM thinks. T
 |------------|--------------------------------------------------------------------|
 | `#file`    | Persist structured output to a named file across modes             |
 | `#html`    | Questions and output as an interactive [html-channel](https://github.com/roterski/html-channel) page |
+| `#offline` | With `#html`: an offline copy of the page for a reader the server can't reach; answers come back as an `.edn` file |
 | `#finding` | One evidence file per question, one section per mode               |
 | `#scratch` | Throwaway code and state in ignored `ai/spike/<slug>/` (`#=spike`) |
 
