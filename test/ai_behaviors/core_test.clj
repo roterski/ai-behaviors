@@ -96,3 +96,58 @@
       (testing "a shadow without the marker drops the catalog"
         (write-behavior! local "=route" {"prompt.md" "# #=route — Route\nRecommend."})
         (is (not (str/includes? (injection ctx ["#=route"]) "<behavior-catalog>")))))))
+
+(deftest parse-subagents-test
+  (testing "repeat and comma forms accumulate to the same tags"
+    (is (= (core/parse-subagents "#:a:challenge #:a:deep")
+           (core/parse-subagents "#:a:challenge,deep")
+           {:agents [{:name "a" :tags ["#challenge" "#deep"]}]
+            :combine {:agents ["a"] :tags ["#all"]}
+            :ignored []
+            :ungrouped []})))
+  (testing "combinator: agents in written order, tags stacked over the same set"
+    (is (= {:agents [{:name "a" :tags ["#challenge"]} {:name "b" :tags []}]
+            :combine {:agents ["a" "b"] :tags ["#diff" "#deep"]}
+            :ignored ["#::c:all"]
+            :ungrouped []}
+           (core/parse-subagents "#:a:challenge #::a+b:diff #::b+a:deep,diff #::c:all"))))
+  (testing "only the combine group is spawned; tagged agents outside it are ungrouped"
+    (is (= {:agents [{:name "a" :tags ["#challenge"]}]
+            :combine {:agents ["a"] :tags ["#diff"]}
+            :ignored []
+            :ungrouped ["b"]}
+           (core/parse-subagents "#:a:challenge #:b:steel-man #::a:diff"))))
+  (testing "agents keep first-appearance order past eight names"
+    (let [names (map #(str "n" %) (range 12))]
+      (is (= names (map :name (:agents (core/parse-subagents
+                                         (str/join " " (map #(str "#:" % ":deep") names)))))))))
+  (testing "not hashtags, and inert after a non-space"
+    (is (= [] (core/parse-hashtags "#:a:challenge #::a+b:diff")))
+    (is (nil? (core/parse-subagents "https://x.com#:a:deep x#::a:diff plain #Code")))))
+
+(deftest subagents-context-test
+  (with-roots
+    (fn [ctx _ repo]
+      (write-behavior! repo "challenge" {"prompt.md" "# #challenge — Challenge\nAttack."})
+      (write-behavior! repo "=code" {"prompt.md" "# #=code — Code\nShip."})
+      (write-behavior! repo "diff" {"prompt.md" "# #diff — Diff\nDisagreements."})
+      (let [{:keys [text missing]}
+            (core/subagents-context ctx (core/parse-subagents "#:a:challenge,=code,nope #::a+b:diff,zz"))]
+        (testing "agent text is the full injection; combine has blocks only"
+          (is (str/includes? text (str "<agent name=\"a\">\n"
+                                       (core/injection-context ctx (core/expand-tags ctx ["#challenge" "#=code"]))
+                                       "\n</agent>")))
+          (is (str/includes? text (str "<combine agents=\"a b\">\n"
+                                       (str/join "\n" core/combine-instruction) "\n"
+                                       "<behavior-modifiers>\n# #diff — Diff\nDisagreements.\n</behavior-modifiers>\n"
+                                       "</combine>\n</subagents>"))))
+        (testing "an untagged agent gets an empty block"
+          (is (str/includes? text "<agent name=\"b\">\n</agent>")))
+        (testing "unknown tags named by agent and combine"
+          (is (= ["a:#nope" "combine:#zz"] missing))))
+      (testing "prompt-injection: main injection, then the block"
+        (let [main (core/injection-context ctx (core/expand-tags ctx ["#=code"]))
+              block (:text (core/subagents-context ctx (core/parse-subagents "#:a:challenge")))]
+          (is (= (str main "\n" block) (core/prompt-injection ctx "#=code #:a:challenge")))
+          (is (= block (core/prompt-injection ctx "#:a:challenge")))
+          (is (nil? (core/prompt-injection ctx "no tags"))))))))

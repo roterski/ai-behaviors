@@ -254,6 +254,36 @@ Meta-keywords are not behaviors — they control the hook itself.
 
 `#EXPLAIN` can be combined with behaviors (`#EXPLAIN #=code #deep`) or used alone to explain the currently active set. Cannot be combined with `#CLEAR`.
 
+### Subagents
+
+Give named subagents their own behaviors, and say how their outputs merge:
+
+```
+Is prompt-only config reliable enough? #:a:challenge #:b:steel-man #::a+b:diff
+```
+
+| Token            | Meaning                                                                 |
+|------------------|-------------------------------------------------------------------------|
+| `#:a:challenge`  | Spawn subagent `a` with `#challenge`. Repeat (`#:a:challenge #:a:deep`) or comma-list (`#:a:challenge,deep`) for several tags; composites and modes work as usual |
+| `#::a+b:diff`    | After `a` and `b` return, merge their outputs under `#diff`. An agent named only here is spawned with no behaviors — a baseline |
+
+Every agent gets the same task: your prompt. A subagent gets only its own tags, never the main agent's. Without a `#::` token, outputs merge under `#all`.
+
+Combinators are ordinary behaviors, resolved like any tag (so project and user overrides work), applied to the merge only:
+
+| Combinator | Merge                                                               |
+|------------|---------------------------------------------------------------------|
+| `#all`     | Every output in full, under its agent name                          |
+| `#diff`    | Only where the agents' conclusions differ                           |
+| `#first`   | The first output to arrive; the others are stopped where the host allows |
+
+Any other behavior works too: `#::a+b:=converge`, `#::a+b:challenge`.
+
+- **One-shot.** Agent and combinator tokens apply to their own prompt only. They are never stored, and a prompt with only these tokens keeps the active behaviors.
+- **One combine group per prompt.** More `#::` tokens over the same agents add tags; one over other agents is ignored, with a warning. Only the group is spawned: a tagged agent left out of it is ignored, with a warning.
+- **The main agent relays.** The hook injects each agent's text and an instruction to copy it, character for character, into that agent's spawn prompt. Nothing but the model enforces that copy. In tests it was exact in 10 of 10 spawns through the hook, and 23 of 25 with the injection simulated (`tests/dogfood/subagents/KEY.md`); fresh sessions only, long sessions are unmeasured.
+- `#CLEAR` cannot be combined with these tokens. `#EXPLAIN` explains them.
+
 ### Methodology composition
 
 Modes define the interaction loop. Behaviors fill in the methodology. The same mode with different behaviors produces different approaches:
@@ -327,6 +357,7 @@ See the output-examples folder for generated python snake games with various fra
 5. If a behavior's directory holds a `catalog` file (as `=route`'s does), appends a `<behavior-catalog>` after its text — one line per behavior resolvable from here (project-local, user-local, repo)
 6. Injects the content as ephemeral additional context
 7. The LLM follows the directives until the next prompt with hashtags replaces them
+8. `#:agent:tag` and `#::a+b:tag` tokens, if any, add a `<subagents>` block after it: each agent's own injection, and the combine step's behaviors (see [Subagents](#subagents))
 
 ## Clojure API
 
@@ -345,7 +376,7 @@ To apply behaviors to a prompt in your own program rather than through the hook,
 
 Runs on [babashka](https://babashka.org/) — `bb -e "(require '[ai-behaviors.api :as ab]) (println (ab/augment \"#Code #deep\"))"` from the repo root.
 
-**The API is stateless.** This is the one place it differs from the hook: behaviors do not stick across calls. Every prompt carries its own hashtags, and a prompt without hashtags comes back untouched rather than keeping the previous set. Session stickiness lives in the hook's state file, not here.
+**The API is stateless.** This is the one place it differs from the hook: behaviors do not stick across calls. Every prompt carries its own hashtags, and a prompt without hashtags or subagent tokens comes back untouched rather than keeping the previous set. Session stickiness lives in the hook's state file, not here.
 
 Each function takes an optional second argument — a context, or overrides to build one with:
 

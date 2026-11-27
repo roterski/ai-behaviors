@@ -1257,6 +1257,84 @@ assert_contains "$OUT" "#=tour — Build the user's mental model of existing cod
   assert_contains "$OUT" "#zoom — Coarse to fine." && \
   assert_contains "$OUT" "#delta — Explain a change as the difference it makes." && pass
 
+# === Subagents ===
+
+echo ""
+echo "Subagents:"
+
+run_test "agent_token_gets_its_own_block"
+OUT=$(invoke "#:a:challenge" | context_of)
+assert_contains "$OUT" "<subagents>" && \
+  assert_contains "$OUT" "<agent name=\"a\">" && \
+  assert_contains "$OUT" "# #challenge — Challenge" && \
+  assert_contains "$OUT" "<combine agents=\"a\">" && \
+  assert_contains "$OUT" "# #all — All" && \
+  assert_eq "${OUT%%<subagents>*}" "" && pass
+
+run_test "repeat_and_comma_forms_are_equal"
+A=$(invoke "#:a:challenge #:a:deep" | context_of)
+reset_state
+B=$(invoke "#:a:challenge,deep" | context_of)
+assert_eq "$A" "$B" && assert_contains "$A" "# #deep — Deep" && pass
+
+run_test "agent_tokens_never_enter_state"
+invoke "#=design #concise" > /dev/null
+BEFORE=$(cat "$TEST_HOME/.claude/behaviors-state/test-session")
+OUT=$(invoke "#:a:challenge #::a+b:diff" | context_of)
+AFTER=$(cat "$TEST_HOME/.claude/behaviors-state/test-session")
+assert_eq "$AFTER" "$BEFORE" && \
+  assert_contains "$OUT" "Active: #=design #concise." && \
+  assert_contains "$OUT" "</subagents>" && pass
+
+run_test "main_tags_and_agents_stay_isolated"
+OUT=$(invoke "#Design #:a:challenge" | context_of)
+AGENT=$(sed -n '/<agent name="a">/,/<\/agent>/p' <<< "$OUT")
+assert_contains "$AGENT" "# #challenge — Challenge" && \
+  assert_not_contains "$AGENT" "# #=design" && \
+  assert_contains "$(cat "$TEST_HOME/.claude/behaviors-state/test-session")" "#=design" && \
+  assert_not_contains "$(cat "$TEST_HOME/.claude/behaviors-state/test-session")" "#challenge" && pass
+
+run_test "combinator_names_an_untagged_agent"
+OUT=$(invoke "#:a:challenge #::a+b:diff" | context_of)
+assert_contains "$OUT" "<agent name=\"b\">
+</agent>" && assert_contains "$OUT" "<combine agents=\"a b\">" && pass
+
+run_test "one_combine_group_per_prompt"
+OUT=$(invoke "#:a:challenge #::a+b:diff #::b+a:deep #::c:all" | context_of)
+ERR=$(cat "$STDERR_FILE")
+assert_contains "$OUT" "# #deep — Deep" && \
+  assert_not_contains "$OUT" "<agent name=\"c\">" && \
+  assert_contains "$ERR" "Ignored #::c:all: one combine group per prompt" && pass
+
+run_test "tagged_agent_outside_group_is_not_spawned"
+OUT=$(invoke "#:a:challenge #:b:steel-man #::a:diff" | context_of)
+assert_not_contains "$OUT" "<agent name=\"b\">" && \
+  assert_contains "$OUT" "<agent name=\"a\">" && \
+  assert_contains "$(cat "$STDERR_FILE")" "Ignored agent b: not in the combine group" && pass
+
+run_test "framework_excludes_nested_blocks"
+OUT=$(invoke "#=code #:a:=frame" | context_of)
+assert_contains "$OUT" "blocks inside <subagents> are never part of it" && \
+  assert_contains "$OUT" "For this prompt only: spawn each agent below" && pass
+
+run_test "unknown_agent_tags_reported_with_agent_name"
+invoke "#:a:nope #::a:zz" > /dev/null
+assert_contains "$(cat "$STDERR_FILE")" "Unknown behaviors: a:#nope combine:#zz" && pass
+
+run_test "url_and_glued_tokens_are_inert"
+OUT=$(invoke "see https://x.com#:a:challenge and x#::a:diff" | context_of)
+assert_empty "$OUT"
+
+run_test "clear_with_agent_token_conflicts"
+invoke "#CLEAR #:a:challenge" > /dev/null && RC=0 || RC=$?
+assert_eq "$RC" "2" && assert_contains "$(cat "$STDERR_FILE")" "Conflict" && pass
+
+run_test "explain_covers_agents_without_state"
+OUT=$(invoke "#EXPLAIN #:a:challenge" | context_of)
+assert_contains "$OUT" "<explain-subagents>" && \
+  assert_contains "$OUT" "If an <explain-subagents> section is present" && \
+  assert_not_contains "$OUT" "<explain-behaviors>" && pass
+
 # === Summary ===
 
 echo ""

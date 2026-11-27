@@ -27,7 +27,7 @@
        "HARD CONSTRAINTs define what the current mode IS, not what it chooses — they are not instructions that can be overridden. " bypass-instruction "\n"
        marking-instruction "\n"
        "⊣ {#Code} means: suggest #Code to the user. Only the user switches modes — never self-transition.\n"
-       "The above operating-mode, behavior-modifiers, and framework apply to all responses until superseded. When new blocks appear, only the most recent set applies. During compaction, preserve the most recent <operating-mode>, <behavior-modifiers>, and <framework> blocks verbatim. Discard all older ones.\n"
+       "The above operating-mode, behavior-modifiers, and framework apply to all responses until superseded. When new blocks appear, only the most recent set applies; blocks inside <subagents> are never part of it. During compaction, preserve the most recent <operating-mode>, <behavior-modifiers>, and <framework> blocks outside <subagents> verbatim. Discard all older ones.\n"
        "</framework>"))
 
 (def explain-instruction-body
@@ -41,6 +41,9 @@
    "## Hard constraints — non-negotiable rules."
    "## Interactions — how behaviors reinforce, tension, or scope each other. Only notable ones."
    "## Example — brief: given a task, how would the response differ from default? Use the user's prompt as context if it contains a task, otherwise pick a hypothetical."])
+
+(def subagents-explain-instruction
+  "If an <explain-subagents> section is present, also explain what each agent's behaviors make it do, and what the combine step does with their outputs.")
 
 (def dropped-instruction
   "If a <dropped-by-mode-resolution> section is present, explain which behaviors were dropped and why (last operating mode wins) before analyzing the surviving set.")
@@ -150,12 +153,76 @@
   #"(?m)(?:^|\s)(#[=a-zA-Z0-9_-]+)")
 
 (defn parse-hashtags
-  "Hashtags in `prompt`, in order of first appearance, deduplicated."
+  "Hashtags in `prompt`, in order of first appearance, deduplicated.
+  Agent and combinator tokens are not hashtags: `#:` and `#::` never match."
   [prompt]
   (->> (re-seq hashtag-pattern (or prompt ""))
        (map second)
        distinct
        vec))
+
+;; --- Subagent tokens --------------------------------------------------------
+;; `#:NAME:TAGS` gives subagent NAME its own tags. `#::A+B:TAGS` merges A's and
+;; B's outputs under TAGS. TAGS is a comma list of tag names without `#`.
+;; Both are one-shot: they never enter `parse-hashtags`, so never session state.
+
+(def agent-token-pattern
+  #"(?m)(?:^|\s)#:([a-zA-Z0-9_-]+):([=a-zA-Z0-9_,-]+)")
+
+(def combinator-token-pattern
+  #"(?m)(?:^|\s)(#::([a-zA-Z0-9_-]+(?:\+[a-zA-Z0-9_-]+)*):([=a-zA-Z0-9_,-]+))")
+
+(defn- comma-tags
+  "challenge,,deep -> [#challenge #deep]"
+  [s]
+  (vec (for [t (str/split s #",") :when (not (str/blank? t))] (str "#" t))))
+
+(defn parse-subagents
+  "Agent and combinator tokens in `prompt`, or nil when it has none:
+
+    {:agents  [{:name \"a\" :tags [\"#challenge\"]} ...]  ; spawn order
+     :combine {:agents [\"a\" \"b\"] :tags [\"#diff\"]}
+     :ignored [\"#::c:all\" ...]                         ; combinators over another set
+     :ungrouped [\"d\" ...]}                             ; tagged, outside the group
+
+  Agents come in order of their first `#:` token, then agents named only by the
+  combinator, which get no tags. Repeated tokens for one agent accumulate. One
+  combine group per prompt: the first combinator fixes its agent set, later ones
+  over the same set add tags, ones over another set land in `:ignored`. Only the
+  group is spawned: a tagged agent outside it lands in `:ungrouped`. Without a
+  combinator, `#all` merges every agent."
+  [prompt]
+  (let [prompt (or prompt "")
+        agent-tokens (re-seq agent-token-pattern prompt)
+        agent-tags (reduce (fn [m [_ name tags]]
+                             (update m name (fnil into []) (comma-tags tags)))
+                           {}
+                           agent-tokens)
+        {:keys [combine ignored]}
+        (reduce (fn [acc [_ token names tags]]
+                  (let [names (vec (distinct (str/split names #"\+")))
+                        group (:combine acc)]
+                    (cond
+                      (nil? group)
+                      (assoc acc :combine {:agents names :tags (comma-tags tags)})
+
+                      (= (set names) (set (:agents group)))
+                      (update-in acc [:combine :tags] into (comma-tags tags))
+
+                      :else
+                      (update acc :ignored conj token))))
+                {:combine nil :ignored []}
+                (re-seq combinator-token-pattern prompt))
+        all-names (distinct (concat (map second agent-tokens) (:agents combine)))
+        grouped? (if combine (set (:agents combine)) (constantly true))
+        names (filter grouped? all-names)]
+    (when (seq all-names)
+      {:agents (vec (for [n names] {:name n :tags (vec (distinct (get agent-tags n [])))}))
+       :combine (if combine
+                  (update combine :tags (comp vec distinct))
+                  {:agents (vec names) :tags ["#all"]})
+       :ignored ignored
+       :ungrouped (vec (remove grouped? all-names))})))
 
 ;; --- Expansion --------------------------------------------------------------
 
@@ -349,8 +416,9 @@
        (filter #(and % (behavior-text ctx %) (behavior-file ctx (tag-name %) "catalog")))
        first))
 
-(defn injection-context
-  "The full behavior injection for an expansion, or nil when it carries nothing."
+(defn behavior-blocks
+  "The <operating-mode> and <behavior-modifiers> blocks for an expansion, with
+  no framework, or nil when it carries nothing."
   [ctx expansion]
   (let [carrier (catalog-carrier ctx expansion)
         injected-text (fn [tag]
@@ -369,7 +437,62 @@
                  (not (str/blank? mod-text))
                  (conj (str "<behavior-modifiers>\n" mod-text "\n</behavior-modifiers>")))]
     (when (seq blocks)
-      (str/join "\n" (conj blocks framework)))))
+      (str/join "\n" blocks))))
+
+(defn injection-context
+  "The full behavior injection for an expansion, or nil when it carries nothing."
+  [ctx expansion]
+  (some-> (behavior-blocks ctx expansion) (str "\n" framework)))
+
+(def subagents-instruction
+  ["For this prompt only: spawn each agent below as a subagent, in parallel, with this prompt's task. A later prompt spawns agents only through its own #: tokens."
+   "Each spawn prompt starts with that agent's text between <agent> and </agent>, copied character for character, then the task."
+   "A subagent gets only its own agent's text."
+   "The blocks inside <agent> and <combine> are not yours: they don't replace your own operating mode, modifiers or framework."])
+
+(def combine-instruction
+  ["After every agent above has returned, merge their outputs into your reply."
+   "The text below applies to that merge only; your own mode and modifiers govern the rest of the reply."])
+
+(defn- tagged-section
+  "<open>\\nline…\\n</close>, skipping blank lines."
+  [open close lines]
+  (str/join "\n" (concat [open] (remove str/blank? lines) [close])))
+
+(defn subagents-context
+  "The <subagents> block for `subagents` (from `parse-subagents`), or nil.
+
+  Each agent's text is the injection its own tags would get as a main agent,
+  framework included; the combine step gets the behavior blocks only, since
+  the framework's \"apply to all responses\" would contradict its scope.
+  Returns {:text … :missing [\"a:#nope\" …]}."
+  [ctx {:keys [agents combine] :as subagents}]
+  (when subagents
+    (let [expanded (for [{:keys [name tags]} agents]
+                     [name (expand-tags ctx tags)])
+          combine-exp (expand-tags ctx (:tags combine))
+          missing (concat (for [[name exp] expanded, tag (:missing exp)] (str name ":" tag))
+                          (for [tag (:missing combine-exp)] (str "combine:" tag)))
+          agent-sections (for [[name exp] expanded]
+                           (tagged-section (str "<agent name=\"" name "\">") "</agent>"
+                                           [(injection-context ctx exp)]))
+          combine-section (tagged-section
+                           (str "<combine agents=\"" (str/join " " (:agents combine)) "\">")
+                           "</combine>"
+                           (concat combine-instruction [(behavior-blocks ctx combine-exp)]))]
+      {:text (tagged-section "<subagents>" "</subagents>"
+                             (concat subagents-instruction agent-sections [combine-section]))
+       :missing (vec missing)})))
+
+(defn prompt-injection
+  "The first-turn injection for `prompt`: its hashtags' injection, then the
+  <subagents> block, joined by a newline. nil when there is neither.
+  No session state: a prompt with no hashtags injects only its subagents."
+  [ctx prompt]
+  (let [tags (parse-hashtags prompt)
+        main (when (seq tags) (injection-context ctx (expand-tags ctx tags)))
+        subagents (:text (subagents-context ctx (parse-subagents prompt)))]
+    (some->> (remove nil? [main subagents]) seq (str/join "\n"))))
 
 (defn- behavior-block
   [name role text]
@@ -378,58 +501,64 @@
 (defn explain-context
   "What `tags` would do, rather than the instruction to do it: expansion trees,
   what mode resolution
-  dropped, and the behavior texts to analyse. Returns nil when there is
-  nothing to explain."
-  [ctx tags]
-  (let [tags (if (string? tags) (split-tags tags) tags)
-        {:keys [customs] :as expansion} (expand-tags ctx tags)
-        mode-tag (mode-of expansion)
-        ;; A composite that carries a losing mode is dropped whole, so its tree
-        ;; would only mislead.
-        {:keys [trees dropped]}
-        (reduce (fn [acc tag]
-                  (let [name (tag-name tag)]
-                    (if-not (composite? ctx name)
-                      acc
-                      (let [cmode (compose-mode ctx name)]
-                        (if (and cmode mode-tag (not= cmode mode-tag))
-                          (update acc :dropped conj
-                                  (str tag " (mode " cmode ") — superseded by " mode-tag))
-                          (update acc :trees conj
-                                  (str tag "\n" (expansion-tree ctx name))))))))
-                {:trees [] :dropped []}
-                tags)
-        dropped (into dropped
-                      (for [tag tags
-                            :when (and (mode-tag? tag)
-                                       (not= tag mode-tag)
-                                       (not (composite? ctx (tag-name tag)))
-                                       (resolve-dir ctx (tag-name tag)))]
-                        (str tag " — superseded by " mode-tag)))
-        content (str/join
-                 "\n"
-                 (concat
-                  (when-let [text (and mode-tag (behavior-text ctx mode-tag))]
-                    [(behavior-block mode-tag "mode" text)])
-                  (for [tag (modifiers-of expansion)
-                        :let [text (behavior-text ctx tag)]
-                        :when text]
-                    (behavior-block tag "modifier" text))
-                  (for [[name text] customs]
-                    (behavior-block (str "#" name) "composite" text))))
-        tree-section (when (seq trees)
-                       (str "<expansion-tree>\n" (str/join "\n" trees) "</expansion-tree>\n"))
-        dropped-section (when (seq dropped)
-                          (str "<dropped-by-mode-resolution>\n"
-                               (str/join (map #(str % "\n") dropped))
-                               "</dropped-by-mode-resolution>\n"))]
-    (when (or (seq content) tree-section)
-      (str "<explain-instruction>\n"
-           (str/join "\n" explain-instruction-body)
-           (when dropped-section (str "\n" dropped-instruction))
-           "\n\n"
-           (str/join "\n" explain-sections)
-           "\n</explain-instruction>\n"
-           tree-section
-           dropped-section
-           "<explain-behaviors>\n" content "\n</explain-behaviors>"))))
+  dropped, and the behavior texts to analyse. `subagents` is a <subagents>
+  block (`subagents-context`'s :text) to explain alongside, or nil. Returns nil
+  when there is nothing to explain."
+  ([ctx tags] (explain-context ctx tags nil))
+  ([ctx tags subagents]
+   (let [tags (if (string? tags) (split-tags tags) tags)
+         {:keys [customs] :as expansion} (expand-tags ctx tags)
+         mode-tag (mode-of expansion)
+         ;; A composite that carries a losing mode is dropped whole, so its tree
+         ;; would only mislead.
+         {:keys [trees dropped]}
+         (reduce (fn [acc tag]
+                   (let [name (tag-name tag)]
+                     (if-not (composite? ctx name)
+                       acc
+                       (let [cmode (compose-mode ctx name)]
+                         (if (and cmode mode-tag (not= cmode mode-tag))
+                           (update acc :dropped conj
+                                   (str tag " (mode " cmode ") — superseded by " mode-tag))
+                           (update acc :trees conj
+                                   (str tag "\n" (expansion-tree ctx name))))))))
+                 {:trees [] :dropped []}
+                 tags)
+         dropped (into dropped
+                       (for [tag tags
+                             :when (and (mode-tag? tag)
+                                        (not= tag mode-tag)
+                                        (not (composite? ctx (tag-name tag)))
+                                        (resolve-dir ctx (tag-name tag)))]
+                         (str tag " — superseded by " mode-tag)))
+         content (str/join
+                  "\n"
+                  (concat
+                   (when-let [text (and mode-tag (behavior-text ctx mode-tag))]
+                     [(behavior-block mode-tag "mode" text)])
+                   (for [tag (modifiers-of expansion)
+                         :let [text (behavior-text ctx tag)]
+                         :when text]
+                     (behavior-block tag "modifier" text))
+                   (for [[name text] customs]
+                     (behavior-block (str "#" name) "composite" text))))
+         tree-section (when (seq trees)
+                        (str "<expansion-tree>\n" (str/join "\n" trees) "</expansion-tree>\n"))
+         dropped-section (when (seq dropped)
+                           (str "<dropped-by-mode-resolution>\n"
+                                (str/join (map #(str % "\n") dropped))
+                                "</dropped-by-mode-resolution>\n"))
+         main? (or (seq content) tree-section)]
+     (when (or main? subagents)
+       (str "<explain-instruction>\n"
+            (str/join "\n" explain-instruction-body)
+            (when dropped-section (str "\n" dropped-instruction))
+            (when subagents (str "\n" subagents-explain-instruction))
+            "\n\n"
+            (str/join "\n" explain-sections)
+            "\n</explain-instruction>\n"
+            tree-section
+            dropped-section
+            (when main? (str "<explain-behaviors>\n" content "\n</explain-behaviors>"))
+            (when subagents
+              (str (when main? "\n") "<explain-subagents>\n" subagents "\n</explain-subagents>")))))))

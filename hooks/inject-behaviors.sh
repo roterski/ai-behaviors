@@ -209,7 +209,195 @@ read_behavior_text() {
   fi
 }
 
+# The <operating-mode> and <behavior-modifiers> blocks for the current
+# EXPAND_LEAF_TAGS and $_CUSTOM_DIR, with no framework. Sets BLOCKS_TEXT.
+# Mirrors behavior-blocks in ai-behaviors.core.
+render_blocks() {
+  local mode_tag mod_tags tag dir cfile mode_ctx="" mod_ctx=""
+  CATALOG_INJECTED=""
+  mode_tag=$(echo "$EXPAND_LEAF_TAGS" | tr ' ' '\n' | grep '^#=' | head -1 || true)
+  mode_tag="${mode_tag#\#}"
+  mod_tags=$(echo "$EXPAND_LEAF_TAGS" | tr ' ' '\n' | grep -v '^#=' | grep '.' || true)
+  if [ -n "$mode_tag" ]; then
+    dir=$(resolve_dir "$mode_tag")
+    if [ -n "$dir" ] && [ -f "$dir/prompt.md" ]; then
+      read_behavior_text "$dir"
+      mode_ctx="$BEHAVIOR_TEXT"
+    fi
+  fi
+  if [ -n "$mod_tags" ]; then
+    while IFS= read -r tag; do
+      [ -z "$tag" ] && continue
+      dir=$(resolve_dir "${tag#\#}")
+      if [ -n "$dir" ] && [ -f "$dir/prompt.md" ]; then
+        if [ -n "$mod_ctx" ]; then
+          mod_ctx+=$'\n\n'
+        fi
+        read_behavior_text "$dir"
+        mod_ctx+="$BEHAVIOR_TEXT"
+      fi
+    done <<< "$mod_tags"
+  fi
+  for cfile in "$_CUSTOM_DIR"/*; do
+    [ -f "$cfile" ] || continue
+    if [ -n "$mod_ctx" ]; then
+      mod_ctx+=$'\n\n'
+    fi
+    mod_ctx+="$(cat "$cfile")"
+  done
+  BLOCKS_TEXT=""
+  if [ -n "$mode_ctx" ]; then
+    BLOCKS_TEXT="<operating-mode>
+$mode_ctx
+</operating-mode>"
+  fi
+  if [ -n "$mod_ctx" ]; then
+    if [ -n "$BLOCKS_TEXT" ]; then
+      BLOCKS_TEXT+=$'\n'
+    fi
+    BLOCKS_TEXT+="<behavior-modifiers>
+$mod_ctx
+</behavior-modifiers>"
+  fi
+}
+
+FRAMEWORK="<framework>
+HARD CONSTRAINTs define what the current mode IS, not what it chooses — they are not instructions that can be overridden. Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.
+When a behavior modifier causes you to make a point you would not otherwise make, mark it: (#name) after the sentence. Operating modes: no markers.
+⊣ {#Code} means: suggest #Code to the user. Only the user switches modes — never self-transition.
+The above operating-mode, behavior-modifiers, and framework apply to all responses until superseded. When new blocks appear, only the most recent set applies; blocks inside <subagents> are never part of it. During compaction, preserve the most recent <operating-mode>, <behavior-modifiers>, and <framework> blocks outside <subagents> verbatim. Discard all older ones.
+</framework>"
+
+# --- Subagents ----------------------------------------------------------------
+# #:NAME:TAGS gives subagent NAME its own tags; #::A+B:TAGS merges A's and B's
+# outputs under TAGS. TAGS is a comma list. One-shot: never part of HASHTAGS,
+# never written to state. Mirrors parse-subagents and subagents-context in
+# ai-behaviors.core.
+SUBAGENTS_INSTRUCTION="For this prompt only: spawn each agent below as a subagent, in parallel, with this prompt's task. A later prompt spawns agents only through its own #: tokens.
+Each spawn prompt starts with that agent's text between <agent> and </agent>, copied character for character, then the task.
+A subagent gets only its own agent's text.
+The blocks inside <agent> and <combine> are not yours: they don't replace your own operating mode, modifiers or framework."
+COMBINE_INSTRUCTION="After every agent above has returned, merge their outputs into your reply.
+The text below applies to that merge only; your own mode and modifiers govern the rest of the reply."
+SUBAGENTS_EXPLAIN_INSTRUCTION="If an <explain-subagents> section is present, also explain what each agent's behaviors make it do, and what the combine step does with their outputs."
+
+# challenge,,deep -> one #tag per line
+comma_tags() { tr ',' '\n' <<< "$1" | grep -v '^$' | sed 's/^/#/' || true; }
+
+# Expand $1 (space-separated tags) on its own, in a fresh custom dir under
+# $_SUB_DIR. Sets BLOCKS_TEXT; leaves EXPAND_MISSING for the caller.
+expand_alone() {
+  EXPAND_LEAF_TAGS=""
+  EXPAND_MISSING=""
+  _MODE_SEEN=0
+  _CUSTOM_DIR=$(mktemp -d "$_SUB_DIR/custom.XXXXXX")
+  expand_tags "$1" 0 ""
+  render_blocks
+}
+
+# Sets SUBAGENTS_BLOCK (empty when the prompt has no agent or combinator
+# tokens) and SUBAGENTS_MISSING (" a:#nope combine:#x").
+build_subagents() {
+  local agent_tokens combine_tokens tok body name tags names key t
+  local agent_names="" agent_pairs="" combine_agents="" combine_key="" combine_tags="" all_names block
+  agent_tokens=$(grep -oE '(^|[[:space:]])#:[a-zA-Z0-9_-]+:[=a-zA-Z0-9_,-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//') || true
+  combine_tokens=$(grep -oE '(^|[[:space:]])#::[a-zA-Z0-9_-]+(\+[a-zA-Z0-9_-]+)*:[=a-zA-Z0-9_,-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//') || true
+  if [ -z "$agent_tokens$combine_tokens" ]; then
+    return 0
+  fi
+  while IFS= read -r tok; do
+    [ -z "$tok" ] && continue
+    body="${tok#\#:}"
+    name="${body%%:*}"
+    agent_names+="$name"$'\n'
+    while IFS= read -r t; do
+      [ -n "$t" ] && agent_pairs+="$name $t"$'\n'
+    done < <(comma_tags "${body#*:}")
+  done <<< "$agent_tokens"
+  # One combine group: the first combinator fixes the agent set; later ones over
+  # the same set add tags, ones over another set are ignored.
+  while IFS= read -r tok; do
+    [ -z "$tok" ] && continue
+    body="${tok#\#::}"
+    names=$(tr '+' '\n' <<< "${body%%:*}" | awk '!seen[$0]++')
+    key=$(LC_ALL=C sort <<< "$names" | tr '\n' ' ')
+    if [ -z "$combine_key" ]; then
+      combine_key="$key"
+      combine_agents="$names"
+    elif [ "$key" != "$combine_key" ]; then
+      echo "Ignored $tok: one combine group per prompt" >&2
+      continue
+    fi
+    combine_tags+="$(comma_tags "${body#*:}")"$'\n'
+  done <<< "$combine_tokens"
+  all_names=$(printf '%s\n%s\n' "$agent_names" "$combine_agents" | grep '.' | awk '!seen[$0]++')
+  if [ -z "$combine_key" ]; then
+    combine_agents="$all_names"
+    combine_tags="#all"
+  fi
+  # Only the combine group is spawned; a tagged agent outside it is reported.
+  all_names=$(printf '%s\n' "$all_names" | while IFS= read -r name; do
+    if grep -qxF -- "$name" <<< "$combine_agents"; then
+      echo "$name"
+    else
+      echo "Ignored agent $name: not in the combine group" >&2
+    fi
+  done)
+
+  _SUB_DIR=$(mktemp -d)
+  trap 'rm -rf "$_SUB_DIR"' EXIT
+  block="<subagents>"$'\n'"$SUBAGENTS_INSTRUCTION"
+  while IFS= read -r name; do
+    tags=$(awk -v n="$name" '$1 == n { print $2 }' <<< "$agent_pairs" | awk '!seen[$0]++' | tr '\n' ' ')
+    expand_alone "$tags"
+    for t in $EXPAND_MISSING; do SUBAGENTS_MISSING+=" $name:$t"; done
+    block+=$'\n'"<agent name=\"$name\">"
+    if [ -n "$BLOCKS_TEXT" ]; then
+      block+=$'\n'"$BLOCKS_TEXT"$'\n'"$FRAMEWORK"
+    fi
+    block+=$'\n'"</agent>"
+  done <<< "$all_names"
+  expand_alone "$(grep '.' <<< "$combine_tags" | awk '!seen[$0]++' | tr '\n' ' ')"
+  for t in $EXPAND_MISSING; do SUBAGENTS_MISSING+=" combine:$t"; done
+  block+=$'\n'"<combine agents=\"$(tr '\n' ' ' <<< "$combine_agents" | sed 's/ *$//')\">"$'\n'"$COMBINE_INSTRUCTION"
+  if [ -n "$BLOCKS_TEXT" ]; then
+    block+=$'\n'"$BLOCKS_TEXT"
+  fi
+  block+=$'\n'"</combine>"$'\n'"</subagents>"
+  SUBAGENTS_BLOCK="$block"
+  EXPAND_LEAF_TAGS=""
+  EXPAND_MISSING=""
+  _MODE_SEEN=0
+  _CUSTOM_DIR=""
+  CATALOG_INJECTED=""
+}
+
+# $1 followed by the <subagents> block when there is one, as the hook's output.
+emit_with_subagents() {
+  local ctx="$1"
+  if [ -n "$SUBAGENTS_BLOCK" ]; then
+    if [ -n "$ctx" ]; then
+      ctx+=$'\n'
+    fi
+    ctx+="$SUBAGENTS_BLOCK"
+  fi
+  emit_context "$ctx"
+}
+# Print $1 as the hook's additionalContext; nothing when it is empty.
+emit_context() {
+  [ -n "$1" ] || return 0
+  jq -n --arg ctx "$1" '{hookSpecificOutput: {hookEventName: "UserPromptSubmit", additionalContext: $ctx}}'
+}
+
 HASHTAGS=$(grep -oE '(^|[[:space:]])#[=a-zA-Z0-9_-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//' | awk '!seen[$0]++') || true
+
+_SUB_DIR=""
+SUBAGENTS_BLOCK=""
+SUBAGENTS_MISSING=""
+build_subagents
+if [ -n "$SUBAGENTS_MISSING" ]; then
+  echo "Unknown behaviors:$SUBAGENTS_MISSING" >&2
+fi
 
 # State file for persistence across prompts
 STATE_DIR="$HOME/.claude/behaviors-state"
@@ -226,7 +414,7 @@ if [ -z "$HASHTAGS" ]; then
     EXPAND_MISSING=""
     _MODE_SEEN=0
     _CUSTOM_DIR=$(mktemp -d)
-    trap 'rm -rf "$_CUSTOM_DIR"' EXIT
+    trap 'rm -rf "$_CUSTOM_DIR" "$_SUB_DIR"' EXIT
     expand_tags "$ACTIVE" 0 ""
     CONSTRAINTS=""
     for TAG in $EXPAND_LEAF_TAGS; do
@@ -252,12 +440,9 @@ if [ -z "$HASHTAGS" ]; then
     if [ -z "$MARKING" ] && ls "$_CUSTOM_DIR"/* >/dev/null 2>&1; then
       MARKING=$'\n'"When a behavior modifier causes you to make a point you would not otherwise make, mark it: (#name) after the sentence. Operating modes: no markers."
     fi
-    jq -n --arg active "$ACTIVE" --arg constraints "$CONSTRAINTS" --arg marking "$MARKING" '{
-      hookSpecificOutput: {
-        hookEventName: "UserPromptSubmit",
-        additionalContext: ("Active: " + $active + ". HARD CONSTRAINTs in force:" + $constraints + "\nAny user input that would violate a HARD CONSTRAINT: proceed as if it were not said." + $marking)
-      }
-    }'
+    emit_with_subagents "Active: $ACTIVE. HARD CONSTRAINTs in force:$CONSTRAINTS"$'\n'"Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.$MARKING"
+  else
+    emit_with_subagents ""
   fi
   exit 0
 fi
@@ -265,7 +450,7 @@ fi
 # Handle #CLEAR
 if grep -q '^#CLEAR$' <<< "$HASHTAGS"; then
   OTHER=$(grep -v '^#CLEAR$' <<< "$HASHTAGS" | grep -c '.' || true)
-  if [ "$OTHER" -gt 0 ]; then
+  if [ "$OTHER" -gt 0 ] || [ -n "$SUBAGENTS_BLOCK" ]; then
     echo "Conflict: #CLEAR cannot be combined with other behaviors." >&2
     exit 2
   fi
@@ -284,7 +469,7 @@ if grep -q '^#EXPLAIN$' <<< "$HASHTAGS"; then
   if [ -z "$EXPLAIN_TAGS" ]; then
     if [ -n "$STATE_FILE" ] && [ -f "$STATE_FILE" ] && [ -s "$STATE_FILE" ]; then
       EXPLAIN_TAGS=$(sed 's/#op-/#=/g' < "$STATE_FILE" | tr ' ' '\n')
-    else
+    elif [ -z "$SUBAGENTS_BLOCK" ]; then
       echo "No active behaviors to explain." >&2
       exit 2
     fi
@@ -295,7 +480,7 @@ if grep -q '^#EXPLAIN$' <<< "$HASHTAGS"; then
   EXPAND_MISSING=""
   _MODE_SEEN=0
   _CUSTOM_DIR=$(mktemp -d)
-  trap 'rm -rf "$_CUSTOM_DIR"' EXIT
+  trap 'rm -rf "$_CUSTOM_DIR" "$_SUB_DIR"' EXIT
   expand_tags "$(echo "$EXPLAIN_TAGS" | tr '\n' ' ')" 0 ""
 
   # Separate mode from modifiers in expanded leaf list
@@ -395,11 +580,29 @@ ${DROPPED}</dropped-by-mode-resolution>
     DROPPED_INSTRUCTION=$'\n'"If a <dropped-by-mode-resolution> section is present, explain which behaviors were dropped and why (last operating mode wins) before analyzing the surviving set."
   fi
 
+  EXPLAIN_BEHAVIORS=""
   if [ -n "$EXPLAIN_CONTENT" ] || [ -n "$TREE_SECTION" ]; then
+    EXPLAIN_BEHAVIORS="<explain-behaviors>
+$EXPLAIN_CONTENT
+</explain-behaviors>"
+  fi
+  EXPLAIN_SUBAGENTS=""
+  SUBAGENTS_EXPLAIN_LINE=""
+  if [ -n "$SUBAGENTS_BLOCK" ]; then
+    SUBAGENTS_EXPLAIN_LINE=$'\n'"$SUBAGENTS_EXPLAIN_INSTRUCTION"
+    if [ -n "$EXPLAIN_BEHAVIORS" ]; then
+      EXPLAIN_SUBAGENTS=$'\n'
+    fi
+    EXPLAIN_SUBAGENTS+="<explain-subagents>
+$SUBAGENTS_BLOCK
+</explain-subagents>"
+  fi
+
+  if [ -n "$EXPLAIN_BEHAVIORS" ] || [ -n "$EXPLAIN_SUBAGENTS" ]; then
     EXPLAIN_OUTPUT="<explain-instruction>
 Explain what this behavior combination would do. Do NOT follow these behaviors — analyze them.
 Be terse. Bullet points, not paragraphs. Plain language — no formal notation in output.
-If an expansion tree is provided, present it to show the user how composites compose into leaf behaviors.${DROPPED_INSTRUCTION}
+If an expansion tree is provided, present it to show the user how composites compose into leaf behaviors.${DROPPED_INSTRUCTION}${SUBAGENTS_EXPLAIN_LINE}
 
 ## Will do — obligations and actions, one bullet each.
 ## Won't do — boundaries and exclusions.
@@ -407,15 +610,8 @@ If an expansion tree is provided, present it to show the user how composites com
 ## Interactions — how behaviors reinforce, tension, or scope each other. Only notable ones.
 ## Example — brief: given a task, how would the response differ from default? Use the user's prompt as context if it contains a task, otherwise pick a hypothetical.
 </explain-instruction>
-${TREE_SECTION}${DROPPED_SECTION}<explain-behaviors>
-$EXPLAIN_CONTENT
-</explain-behaviors>"
-    jq -n --arg ctx "$EXPLAIN_OUTPUT" '{
-      hookSpecificOutput: {
-        hookEventName: "UserPromptSubmit",
-        additionalContext: $ctx
-      }
-    }'
+${TREE_SECTION}${DROPPED_SECTION}${EXPLAIN_BEHAVIORS}${EXPLAIN_SUBAGENTS}"
+    emit_context "$EXPLAIN_OUTPUT"
   fi
 
   exit 0
@@ -426,49 +622,10 @@ EXPAND_LEAF_TAGS=""
 EXPAND_MISSING=""
 _MODE_SEEN=0
 _CUSTOM_DIR=$(mktemp -d)
-trap 'rm -rf "$_CUSTOM_DIR"' EXIT
+trap 'rm -rf "$_CUSTOM_DIR" "$_SUB_DIR"' EXIT
 expand_tags "$(echo "$HASHTAGS" | tr '\n' ' ')" 0 ""
 
-# Separate mode from modifiers (post-expansion)
-MODE_TAG=$(echo "$EXPAND_LEAF_TAGS" | tr ' ' '\n' | grep '^#=' | head -1 || true)
-MODE_TAG="${MODE_TAG#\#}"
-MOD_TAGS=$(echo "$EXPAND_LEAF_TAGS" | tr ' ' '\n' | grep -v '^#=' | grep '.' || true)
-
-# Read mode content
-MODE_CONTEXT=""
-if [ -n "$MODE_TAG" ]; then
-  DIR=$(resolve_dir "$MODE_TAG")
-  if [ -n "$DIR" ] && [ -f "$DIR/prompt.md" ]; then
-    read_behavior_text "$DIR"
-    MODE_CONTEXT="$BEHAVIOR_TEXT"
-  fi
-fi
-
-# Read modifier content
-MOD_CONTEXT=""
-if [ -n "$MOD_TAGS" ]; then
-  while IFS= read -r TAG; do
-    [ -z "$TAG" ] && continue
-    NAME="${TAG#\#}"
-    DIR=$(resolve_dir "$NAME")
-    if [ -n "$DIR" ] && [ -f "$DIR/prompt.md" ]; then
-      if [ -n "$MOD_CONTEXT" ]; then
-        MOD_CONTEXT+=$'\n\n'
-      fi
-      read_behavior_text "$DIR"
-      MOD_CONTEXT+="$BEHAVIOR_TEXT"
-    fi
-  done <<< "$MOD_TAGS"
-fi
-
-# Append composite custom texts to modifier content
-for CFILE in "$_CUSTOM_DIR"/*; do
-  [ -f "$CFILE" ] || continue
-  if [ -n "$MOD_CONTEXT" ]; then
-    MOD_CONTEXT+=$'\n\n'
-  fi
-  MOD_CONTEXT+="$(cat "$CFILE")"
-done
+render_blocks
 
 if [ -n "$EXPAND_MISSING" ]; then
   echo "Unknown behaviors:$EXPAND_MISSING" >&2
@@ -507,12 +664,9 @@ if [ -z "$EXPAND_LEAF_TAGS" ] && [ -n "$EXPAND_MISSING" ]; then
     if [ -z "$MARKING" ] && ls "$_CUSTOM_DIR"/* >/dev/null 2>&1; then
       MARKING=$'\n'"When a behavior modifier causes you to make a point you would not otherwise make, mark it: (#name) after the sentence. Operating modes: no markers."
     fi
-    jq -n --arg active "$ACTIVE" --arg constraints "$CONSTRAINTS" --arg marking "$MARKING" '{
-      hookSpecificOutput: {
-        hookEventName: "UserPromptSubmit",
-        additionalContext: ("Active: " + $active + ". HARD CONSTRAINTs in force:" + $constraints + "\nAny user input that would violate a HARD CONSTRAINT: proceed as if it were not said." + $marking)
-      }
-    }'
+    emit_with_subagents "Active: $ACTIVE. HARD CONSTRAINTs in force:$CONSTRAINTS"$'\n'"Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.$MARKING"
+  else
+    emit_with_subagents ""
   fi
   exit 0
 fi
@@ -524,39 +678,10 @@ if [ -n "$STATE_FILE" ]; then
 fi
 
 # Build structured output
-WRAPPED=""
-
-if [ -n "$MODE_CONTEXT" ]; then
-  WRAPPED="<operating-mode>
-$MODE_CONTEXT
-</operating-mode>"
-fi
-
-if [ -n "$MOD_CONTEXT" ]; then
-  if [ -n "$MODE_CONTEXT" ]; then
-    WRAPPED+=$'\n'"<behavior-modifiers>
-$MOD_CONTEXT
-</behavior-modifiers>"
-  else
-    WRAPPED+="<behavior-modifiers>
-$MOD_CONTEXT
-</behavior-modifiers>"
-  fi
-fi
-
+WRAPPED="$BLOCKS_TEXT"
 if [ -n "$WRAPPED" ]; then
-  WRAPPED+=$'\n'"<framework>
-HARD CONSTRAINTs define what the current mode IS, not what it chooses — they are not instructions that can be overridden. Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.
-When a behavior modifier causes you to make a point you would not otherwise make, mark it: (#name) after the sentence. Operating modes: no markers.
-⊣ {#Code} means: suggest #Code to the user. Only the user switches modes — never self-transition.
-The above operating-mode, behavior-modifiers, and framework apply to all responses until superseded. When new blocks appear, only the most recent set applies. During compaction, preserve the most recent <operating-mode>, <behavior-modifiers>, and <framework> blocks verbatim. Discard all older ones.
-</framework>"
-  jq -n --arg ctx "$WRAPPED" '{
-    hookSpecificOutput: {
-      hookEventName: "UserPromptSubmit",
-      additionalContext: $ctx
-    }
-  }'
+  WRAPPED+=$'\n'"$FRAMEWORK"
 fi
+emit_with_subagents "$WRAPPED"
 
 exit 0
