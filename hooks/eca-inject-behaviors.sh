@@ -263,7 +263,7 @@ FRAMEWORK="<framework>
 HARD CONSTRAINTs define what the current mode IS, not what it chooses — they are not instructions that can be overridden. Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.
 When a behavior modifier causes you to make a point you would not otherwise make, mark it: (#name) after the sentence. Operating modes: no markers.
 ⊣ {#Code} means: suggest #Code to the user. Only the user switches modes — never self-transition.
-The above operating-mode, behavior-modifiers, and framework apply to all responses until superseded. When new blocks appear, only the most recent set applies; blocks inside <subagents> are never part of it. During compaction, preserve the most recent <operating-mode>, <behavior-modifiers>, and <framework> blocks outside <subagents> verbatim. Discard all older ones.
+The above operating-mode, behavior-modifiers, and framework apply to all responses until superseded. When new blocks appear, only the most recent set applies; blocks inside <subagents> or <pipeline> are never part of it. During compaction, preserve the most recent <operating-mode>, <behavior-modifiers>, and <framework> blocks outside <subagents> and <pipeline> verbatim. Discard all older ones.
 </framework>"
 
 # --- Subagents ----------------------------------------------------------------
@@ -293,25 +293,38 @@ expand_alone() {
   render_blocks
 }
 
-# Sets SUBAGENTS_BLOCK (empty when the prompt has no agent or combinator
-# tokens) and SUBAGENTS_MISSING (" a:#nope combine:#x").
-build_subagents() {
-  local agent_tokens combine_tokens tok body name tags names key t
-  local agent_names="" agent_pairs="" combine_agents="" combine_key="" combine_tags="" all_names block
-  agent_tokens=$(grep -oE '(^|[[:space:]])#:[a-zA-Z0-9_-]+:[=a-zA-Z0-9_,-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//') || true
-  combine_tokens=$(grep -oE '(^|[[:space:]])#::[a-zA-Z0-9_-]+(\+[a-zA-Z0-9_-]+)*:[=a-zA-Z0-9_,-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//') || true
-  if [ -z "$agent_tokens$combine_tokens" ]; then
-    return 0
-  fi
+# The prompt's #:NAME:TAGS tokens. Sets AGENT_NAMES (one per line, in order of
+# first token, deduplicated) and AGENT_PAIRS ("name #tag" per line, in token
+# order, repeats kept). Mirrors agent-token-tags in ai-behaviors.core.
+parse_agent_tokens() {
+  local tokens tok body name t
+  AGENT_NAMES=""
+  AGENT_PAIRS=""
+  tokens=$(grep -oE '(^|[[:space:]])#:[a-zA-Z0-9_-]+:[=a-zA-Z0-9_,-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//') || true
   while IFS= read -r tok; do
     [ -z "$tok" ] && continue
     body="${tok#\#:}"
     name="${body%%:*}"
-    agent_names+="$name"$'\n'
+    AGENT_NAMES+="$name"$'\n'
     while IFS= read -r t; do
-      [ -n "$t" ] && agent_pairs+="$name $t"$'\n'
+      [ -n "$t" ] && AGENT_PAIRS+="$name $t"$'\n'
     done < <(comma_tags "${body#*:}")
-  done <<< "$agent_tokens"
+  done <<< "$tokens"
+  AGENT_NAMES=$(grep '.' <<< "$AGENT_NAMES" | awk '!seen[$0]++' || true)
+}
+
+# Sets ORCHESTRATION_KIND=subagents and ORCHESTRATION_BLOCK when the prompt
+# has agent or combinator tokens; adds unknown tags to ORCHESTRATION_MISSING
+# (" a:#nope combine:#x").
+build_subagents() {
+  local combine_tokens tok body name tags names key t
+  local combine_agents="" combine_key="" combine_tags="" all_names block
+  combine_tokens=$(grep -oE '(^|[[:space:]])#::[a-zA-Z0-9_-]+(\+[a-zA-Z0-9_-]+)*:[=a-zA-Z0-9_,-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//') || true
+  parse_agent_tokens
+  if [ -z "$AGENT_NAMES$combine_tokens" ]; then
+    return 0
+  fi
+  ORCHESTRATION_KIND="subagents"
   # One combine group: the first combinator fixes the agent set; later ones over
   # the same set add tags, ones over another set are ignored.
   while IFS= read -r tok; do
@@ -328,7 +341,7 @@ build_subagents() {
     fi
     combine_tags+="$(comma_tags "${body#*:}")"$'\n'
   done <<< "$combine_tokens"
-  all_names=$(printf '%s\n%s\n' "$agent_names" "$combine_agents" | grep '.' | awk '!seen[$0]++')
+  all_names=$(printf '%s\n%s\n' "$AGENT_NAMES" "$combine_agents" | grep '.' | awk '!seen[$0]++')
   if [ -z "$combine_key" ]; then
     combine_agents="$all_names"
     combine_tags="#all"
@@ -346,9 +359,9 @@ build_subagents() {
   trap 'rm -rf "$_SUB_DIR"' EXIT
   block="<subagents>"$'\n'"$SUBAGENTS_INSTRUCTION"
   while IFS= read -r name; do
-    tags=$(awk -v n="$name" '$1 == n { print $2 }' <<< "$agent_pairs" | awk '!seen[$0]++' | tr '\n' ' ')
+    tags=$(awk -v n="$name" '$1 == n { print $2 }' <<< "$AGENT_PAIRS" | awk '!seen[$0]++' | tr '\n' ' ')
     expand_alone "$tags"
-    for t in $EXPAND_MISSING; do SUBAGENTS_MISSING+=" $name:$t"; done
+    for t in $EXPAND_MISSING; do ORCHESTRATION_MISSING+=" $name:$t"; done
     block+=$'\n'"<agent name=\"$name\">"
     if [ -n "$BLOCKS_TEXT" ]; then
       block+=$'\n'"$BLOCKS_TEXT"$'\n'"$FRAMEWORK"
@@ -356,13 +369,13 @@ build_subagents() {
     block+=$'\n'"</agent>"
   done <<< "$all_names"
   expand_alone "$(grep '.' <<< "$combine_tags" | awk '!seen[$0]++' | tr '\n' ' ')"
-  for t in $EXPAND_MISSING; do SUBAGENTS_MISSING+=" combine:$t"; done
+  for t in $EXPAND_MISSING; do ORCHESTRATION_MISSING+=" combine:$t"; done
   block+=$'\n'"<combine agents=\"$(tr '\n' ' ' <<< "$combine_agents" | sed 's/ *$//')\">"$'\n'"$COMBINE_INSTRUCTION"
   if [ -n "$BLOCKS_TEXT" ]; then
     block+=$'\n'"$BLOCKS_TEXT"
   fi
   block+=$'\n'"</combine>"$'\n'"</subagents>"
-  SUBAGENTS_BLOCK="$block"
+  ORCHESTRATION_BLOCK="$block"
   EXPAND_LEAF_TAGS=""
   EXPAND_MISSING=""
   _MODE_SEEN=0
@@ -370,14 +383,170 @@ build_subagents() {
   CATALOG_INJECTED=""
 }
 
-# $1 followed by the <subagents> block when there is one, as the hook's output.
-emit_with_subagents() {
+# --- Pipeline -----------------------------------------------------------------
+# #>A>B>C*N runs stages A, B and C in order, each a fresh subagent fed the
+# previous stage's output; *N loops. A stage is a #: agent name, an a+b group,
+# or a comma list of tags. One-shot, like the subagent tokens; with a #> token,
+# #: and #:: tokens only define its stages. Mirrors parse-pipeline and
+# pipeline-context in ai-behaviors.core.
+PIPELINE_INSTRUCTION="For this prompt only: run the stages below in order, each as a fresh subagent, one at a time: start a stage only after the previous one has returned. A later prompt runs a pipeline only through its own #> token.
+Each spawn prompt starts with that stage's text between <stage> and </stage>, copied character for character, then this prompt's task, then the previous stage's full output under \"Previous stage output:\", copied character for character, never a summary. Wait for each subagent's full result before going on."
+PIPELINE_GROUP_INSTRUCTION="A group stage spawns each of its agents as a fresh subagent, in parallel; each spawn prompt starts with that agent's text between <agent> and </agent>, copied character for character, then this prompt's task, then the previous stage's full output under \"Previous stage output:\", copied character for character, never a summary. After every agent has returned, merge their outputs following the text in <combine>; that merge is the stage's output."
+PIPELINE_OWNERSHIP_INSTRUCTION="The blocks inside <stage> are not yours: they don't replace your own operating mode, modifiers or framework."
+PIPELINE_COMBINE_INSTRUCTION="The text below applies to that merge only; your own mode and modifiers govern everything else."
+PIPELINE_EXPLAIN_INSTRUCTION="If an <explain-pipeline> section is present, also explain the order of its stages, what each stage's behaviors make it do, what passes from one stage to the next, when it loops and stops, and when it pauses for the user."
+PIPELINE_DEFAULT_CAP=3
+PIPELINE_MAX_CAP=999
+PIPELINE_CHECKER_TAG="#triage"
+
+# a+b+a -> one agent name per line, deduplicated, in order
+group_names() { tr '+' '\n' <<< "$1" | grep '.' | awk '!seen[$0]++' || true; }
+# The set key two groups compare by: their names sorted, space-joined.
+group_set_key() { LC_ALL=C sort -u <<< "$1" | tr '\n' ' '; }
+
+# Sets ORCHESTRATION_KIND=pipeline and ORCHESTRATION_BLOCK (empty when refused)
+# when the prompt has a #> token; adds unknown tags to ORCHESTRATION_MISSING
+# (" stage1:#nope r1:#x stage2:combine:#y").
+build_pipeline() {
+  local tokens token body specs digits cap="" spec n=0 name names key tags t tok
+  local combine_tokens combinators=""
+  local used_names="" used_keys="" sections="" has_group="" checker="" empty_unit="" problem=""
+  local section merge loop_line decision_line stage_ref block
+  tokens=$(grep -oE '(^|[[:space:]])#>[=a-zA-Z0-9_,+>-]+(\*[0-9]*)?' <<< "$PROMPT" | sed 's/^[[:space:]]//') || true
+  [ -n "$tokens" ] || return 0
+  ORCHESTRATION_KIND="pipeline"
+  token=$(head -1 <<< "$tokens")
+  while IFS= read -r tok; do
+    [ -n "$tok" ] && echo "Ignored $tok: one pipeline per prompt" >&2
+  done < <(tail -n +2 <<< "$tokens")
+  body="${token#\#>}"
+  specs="${body%%\**}"
+  if [ "$specs" != "$body" ]; then
+    digits="${body#*\*}"
+    if [ -z "$digits" ]; then
+      cap="$PIPELINE_DEFAULT_CAP"
+    elif [ "${#digits}" -gt 3 ]; then
+      cap=$((PIPELINE_MAX_CAP + 1))
+    else
+      cap=$((10#$digits))
+    fi
+  fi
+
+  parse_agent_tokens
+  # One line per #:: token: "<set key>|<token>|<tag> <tag> ..."
+  combine_tokens=$(grep -oE '(^|[[:space:]])#::[a-zA-Z0-9_-]+(\+[a-zA-Z0-9_-]+)*:[=a-zA-Z0-9_,-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//') || true
+  while IFS= read -r tok; do
+    [ -z "$tok" ] && continue
+    body="${tok#\#::}"
+    combinators+="$(group_set_key "$(group_names "${body%%:*}")")|$tok|$(comma_tags "${body#*:}" | tr '\n' ' ')"$'\n'
+  done <<< "$combine_tokens"
+
+  _SUB_DIR=$(mktemp -d)
+  trap 'rm -rf "$_SUB_DIR"' EXIT
+  while IFS= read -r spec; do
+    [ -z "$spec" ] && continue
+    n=$((n + 1))
+    section="<stage n=\"$n\" name=\"$spec\">"
+    if [[ "$spec" == *"+"* ]]; then
+      has_group=1
+      names=$(group_names "$spec")
+      key=$(group_set_key "$names")
+      used_keys+="$key"$'\n'
+      while IFS= read -r name; do
+        used_names+="$name"$'\n'
+        tags=$(awk -v n="$name" '$1 == n { print $2 }' <<< "$AGENT_PAIRS" | awk '!seen[$0]++' | tr '\n' ' ')
+        expand_alone "$tags"
+        for t in $EXPAND_MISSING; do ORCHESTRATION_MISSING+=" $name:$t"; done
+        if [ -z "$EXPAND_LEAF_TAGS" ] && [ -z "$empty_unit" ]; then empty_unit="stage $n's agent $name"; fi
+        if [ -z "$checker" ] && [[ " $EXPAND_LEAF_TAGS " == *" $PIPELINE_CHECKER_TAG "* ]]; then checker="$n|$spec"; fi
+        section+=$'\n'"<agent name=\"$name\">"
+        if [ -n "$BLOCKS_TEXT" ]; then
+          section+=$'\n'"$BLOCKS_TEXT"$'\n'"$FRAMEWORK"
+        fi
+        section+=$'\n'"</agent>"
+      done <<< "$names"
+      merge=$(awk -F'|' -v k="$key" '$1 == k { print $3 }' <<< "$combinators" | tr ' ' '\n' | grep '.' | awk '!seen[$0]++' | tr '\n' ' ' || true)
+      [ -n "$merge" ] || merge="#all"
+      expand_alone "$merge"
+      for t in $EXPAND_MISSING; do ORCHESTRATION_MISSING+=" stage$n:combine:$t"; done
+      section+=$'\n'"<combine agents=\"$(tr '\n' ' ' <<< "$names" | sed 's/ *$//')\">"$'\n'"$PIPELINE_COMBINE_INSTRUCTION"
+      if [ -n "$BLOCKS_TEXT" ]; then
+        section+=$'\n'"$BLOCKS_TEXT"
+      fi
+      section+=$'\n'"</combine>"
+    else
+      if grep -qxF -- "$spec" <<< "$AGENT_NAMES"; then
+        used_names+="$spec"$'\n'
+        tags=$(awk -v n="$spec" '$1 == n { print $2 }' <<< "$AGENT_PAIRS" | awk '!seen[$0]++' | tr '\n' ' ')
+      else
+        tags=$(comma_tags "$spec" | awk '!seen[$0]++' | tr '\n' ' ')
+      fi
+      expand_alone "$tags"
+      for t in $EXPAND_MISSING; do ORCHESTRATION_MISSING+=" stage$n:$t"; done
+      if [ -z "$EXPAND_LEAF_TAGS" ] && [ -z "$empty_unit" ]; then empty_unit="stage $n"; fi
+      if [ -z "$checker" ] && [[ " $EXPAND_LEAF_TAGS " == *" $PIPELINE_CHECKER_TAG "* ]]; then checker="$n|$spec"; fi
+      if [ -n "$BLOCKS_TEXT" ]; then
+        section+=$'\n'"$BLOCKS_TEXT"$'\n'"$FRAMEWORK"
+      fi
+    fi
+    sections+=$'\n'"$section"$'\n'"</stage>"
+  done < <(tr '>' '\n' <<< "$specs")
+
+  while IFS= read -r name; do
+    [ -z "$name" ] && continue
+    grep -qxF -- "$name" <<< "$used_names" || echo "Ignored agent $name: not in the pipeline" >&2
+  done <<< "$AGENT_NAMES"
+  while IFS='|' read -r key tok tags; do
+    [ -z "$tok" ] && continue
+    grep -qxF -- "$key" <<< "$used_keys" || echo "Ignored $tok: not in the pipeline" >&2
+  done <<< "$combinators"
+
+  if [ -n "$cap" ] && { [ "$cap" -lt 1 ] || [ "$cap" -gt "$PIPELINE_MAX_CAP" ]; }; then
+    problem="*N needs N from 1 to $PIPELINE_MAX_CAP"
+  elif [ "$n" -eq 0 ]; then
+    problem="it has no stages"
+  elif [ -n "$empty_unit" ]; then
+    problem="$empty_unit has no known behavior"
+  fi
+  if [ -n "$problem" ]; then
+    echo "Ignored $token: $problem" >&2
+  else
+    loop_line=""
+    stage_ref="stage ${checker%%|*} (${checker#*|})"
+    if [ -n "$cap" ] && [ -n "$checker" ]; then
+      loop_line="Loop: after the last stage, start again from the first. Stage ${checker%%|*} (${checker#*|}) runs at most $cap times; its run number $cap is the last stage of the pipeline. Stop earlier when $stage_ref reports no blocking findings. Before each round, write \"Round\" and its number."
+    elif [ -n "$cap" ]; then
+      loop_line="Loop: after the last stage, start again from the first, for at most $cap rounds. Before each round, write \"Round\" and its number."
+    elif [ -n "$checker" ]; then
+      loop_line="Stop early when $stage_ref reports no blocking findings."
+    fi
+    if [ -n "$checker" ]; then
+      decision_line="Decisions: non-blocking findings go to the next stage as accepted. If a stage carrying $PIPELINE_CHECKER_TAG reports a blocking finding, stop before the next stage, list the blocking findings, and ask the user which to fix; after the user answers, continue with the next stage, passing their answer along. Exception: when the pipeline's last stage reports blocking findings, do not ask; end the pipeline with a report of them."
+    else
+      decision_line="Decisions: each stage's findings go to the next stage as accepted; do not pause for the user."
+    fi
+    block="<pipeline>"$'\n'"$PIPELINE_INSTRUCTION"
+    [ -n "$has_group" ] && block+=$'\n'"$PIPELINE_GROUP_INSTRUCTION"
+    [ -n "$loop_line" ] && block+=$'\n'"$loop_line"
+    block+=$'\n'"$decision_line"$'\n'"$PIPELINE_OWNERSHIP_INSTRUCTION$sections"$'\n'"</pipeline>"
+    ORCHESTRATION_BLOCK="$block"
+  fi
+  EXPAND_LEAF_TAGS=""
+  EXPAND_MISSING=""
+  _MODE_SEEN=0
+  _CUSTOM_DIR=""
+  CATALOG_INJECTED=""
+}
+
+# $1 followed by the <subagents> or <pipeline> block when there is one, as the
+# hook's output.
+emit_with_orchestration() {
   local ctx="$1"
-  if [ -n "$SUBAGENTS_BLOCK" ]; then
+  if [ -n "$ORCHESTRATION_BLOCK" ]; then
     if [ -n "$ctx" ]; then
       ctx+=$'\n'
     fi
-    ctx+="$SUBAGENTS_BLOCK"
+    ctx+="$ORCHESTRATION_BLOCK"
   fi
   emit_context "$ctx"
 }
@@ -390,11 +559,15 @@ emit_context() {
 HASHTAGS=$(grep -oE '(^|[[:space:]])#[=a-zA-Z0-9_-]+' <<< "$PROMPT" | sed 's/^[[:space:]]//' | awk '!seen[$0]++') || true
 
 _SUB_DIR=""
-SUBAGENTS_BLOCK=""
-SUBAGENTS_MISSING=""
-build_subagents
-if [ -n "$SUBAGENTS_MISSING" ]; then
-  echo "Unknown behaviors:$SUBAGENTS_MISSING" >&2
+ORCHESTRATION_KIND=""
+ORCHESTRATION_BLOCK=""
+ORCHESTRATION_MISSING=""
+build_pipeline
+if [ -z "$ORCHESTRATION_KIND" ]; then
+  build_subagents
+fi
+if [ -n "$ORCHESTRATION_MISSING" ]; then
+  echo "Unknown behaviors:$ORCHESTRATION_MISSING" >&2
 fi
 
 # State file for persistence across prompts
@@ -437,9 +610,9 @@ if [ -z "$HASHTAGS" ]; then
     if [ -z "$MARKING" ] && ls "$_CUSTOM_DIR"/* >/dev/null 2>&1; then
       MARKING=$'\n'"When a behavior modifier causes you to make a point you would not otherwise make, mark it: (#name) after the sentence. Operating modes: no markers."
     fi
-    emit_with_subagents "Active: $ACTIVE. HARD CONSTRAINTs in force:$CONSTRAINTS"$'\n'"Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.$MARKING"
+    emit_with_orchestration "Active: $ACTIVE. HARD CONSTRAINTs in force:$CONSTRAINTS"$'\n'"Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.$MARKING"
   else
-    emit_with_subagents ""
+    emit_with_orchestration ""
   fi
   exit 0
 fi
@@ -447,7 +620,7 @@ fi
 # Handle #CLEAR
 if grep -q '^#CLEAR$' <<< "$HASHTAGS"; then
   OTHER=$(grep -v '^#CLEAR$' <<< "$HASHTAGS" | grep -c '.' || true)
-  if [ "$OTHER" -gt 0 ] || [ -n "$SUBAGENTS_BLOCK" ]; then
+  if [ "$OTHER" -gt 0 ] || [ -n "$ORCHESTRATION_KIND" ]; then
     echo "Conflict: #CLEAR cannot be combined with other behaviors." >&2
     exit 2
   fi
@@ -466,7 +639,7 @@ if grep -q '^#EXPLAIN$' <<< "$HASHTAGS"; then
   if [ -z "$EXPLAIN_TAGS" ]; then
     if [ -n "$STATE_FILE" ] && [ -f "$STATE_FILE" ] && [ -s "$STATE_FILE" ]; then
       EXPLAIN_TAGS=$(sed 's/#op-/#=/g' < "$STATE_FILE" | tr ' ' '\n')
-    elif [ -z "$SUBAGENTS_BLOCK" ]; then
+    elif [ -z "$ORCHESTRATION_BLOCK" ]; then
       echo "No active behaviors to explain." >&2
       exit 2
     fi
@@ -583,23 +756,27 @@ ${DROPPED}</dropped-by-mode-resolution>
 $EXPLAIN_CONTENT
 </explain-behaviors>"
   fi
-  EXPLAIN_SUBAGENTS=""
-  SUBAGENTS_EXPLAIN_LINE=""
-  if [ -n "$SUBAGENTS_BLOCK" ]; then
-    SUBAGENTS_EXPLAIN_LINE=$'\n'"$SUBAGENTS_EXPLAIN_INSTRUCTION"
-    if [ -n "$EXPLAIN_BEHAVIORS" ]; then
-      EXPLAIN_SUBAGENTS=$'\n'
+  EXPLAIN_ORCHESTRATION=""
+  ORCHESTRATION_EXPLAIN_LINE=""
+  if [ -n "$ORCHESTRATION_BLOCK" ]; then
+    if [ "$ORCHESTRATION_KIND" = "pipeline" ]; then
+      ORCHESTRATION_EXPLAIN_LINE=$'\n'"$PIPELINE_EXPLAIN_INSTRUCTION"
+    else
+      ORCHESTRATION_EXPLAIN_LINE=$'\n'"$SUBAGENTS_EXPLAIN_INSTRUCTION"
     fi
-    EXPLAIN_SUBAGENTS+="<explain-subagents>
-$SUBAGENTS_BLOCK
-</explain-subagents>"
+    if [ -n "$EXPLAIN_BEHAVIORS" ]; then
+      EXPLAIN_ORCHESTRATION=$'\n'
+    fi
+    EXPLAIN_ORCHESTRATION+="<explain-$ORCHESTRATION_KIND>
+$ORCHESTRATION_BLOCK
+</explain-$ORCHESTRATION_KIND>"
   fi
 
-  if [ -n "$EXPLAIN_BEHAVIORS" ] || [ -n "$EXPLAIN_SUBAGENTS" ]; then
+  if [ -n "$EXPLAIN_BEHAVIORS" ] || [ -n "$EXPLAIN_ORCHESTRATION" ]; then
     EXPLAIN_OUTPUT="<explain-instruction>
 Explain what this behavior combination would do. Do NOT follow these behaviors — analyze them.
 Be terse. Bullet points, not paragraphs. Plain language — no formal notation in output.
-If an expansion tree is provided, present it to show the user how composites compose into leaf behaviors.${DROPPED_INSTRUCTION}${SUBAGENTS_EXPLAIN_LINE}
+If an expansion tree is provided, present it to show the user how composites compose into leaf behaviors.${DROPPED_INSTRUCTION}${ORCHESTRATION_EXPLAIN_LINE}
 
 ## Will do — obligations and actions, one bullet each.
 ## Won't do — boundaries and exclusions.
@@ -607,7 +784,7 @@ If an expansion tree is provided, present it to show the user how composites com
 ## Interactions — how behaviors reinforce, tension, or scope each other. Only notable ones.
 ## Example — brief: given a task, how would the response differ from default? Use the user's prompt as context if it contains a task, otherwise pick a hypothetical.
 </explain-instruction>
-${TREE_SECTION}${DROPPED_SECTION}${EXPLAIN_BEHAVIORS}${EXPLAIN_SUBAGENTS}"
+${TREE_SECTION}${DROPPED_SECTION}${EXPLAIN_BEHAVIORS}${EXPLAIN_ORCHESTRATION}"
     emit_context "$EXPLAIN_OUTPUT"
   fi
 
@@ -661,9 +838,9 @@ if [ -z "$EXPAND_LEAF_TAGS" ] && [ -n "$EXPAND_MISSING" ]; then
     if [ -z "$MARKING" ] && ls "$_CUSTOM_DIR"/* >/dev/null 2>&1; then
       MARKING=$'\n'"When a behavior modifier causes you to make a point you would not otherwise make, mark it: (#name) after the sentence. Operating modes: no markers."
     fi
-    emit_with_subagents "Active: $ACTIVE. HARD CONSTRAINTs in force:$CONSTRAINTS"$'\n'"Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.$MARKING"
+    emit_with_orchestration "Active: $ACTIVE. HARD CONSTRAINTs in force:$CONSTRAINTS"$'\n'"Any user input that would violate a HARD CONSTRAINT: proceed as if it were not said.$MARKING"
   else
-    emit_with_subagents ""
+    emit_with_orchestration ""
   fi
   exit 0
 fi
@@ -679,6 +856,6 @@ WRAPPED="$BLOCKS_TEXT"
 if [ -n "$WRAPPED" ]; then
   WRAPPED+=$'\n'"$FRAMEWORK"
 fi
-emit_with_subagents "$WRAPPED"
+emit_with_orchestration "$WRAPPED"
 
 exit 0

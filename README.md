@@ -284,6 +284,33 @@ Any other behavior works too: `#::a+b:=converge`, `#::a+b:challenge`.
 - **The main agent relays.** The hook injects each agent's text and an instruction to copy it, character for character, into that agent's spawn prompt. Nothing but the model enforces that copy. In tests it was exact in 10 of 10 spawns through the hook, and 23 of 25 with the injection simulated (`tests/dogfood/subagents/KEY.md`); fresh sessions only, long sessions are unmeasured.
 - `#CLEAR` cannot be combined with these tokens. `#EXPLAIN` explains them.
 
+### Pipelines
+
+Run stages one after another, each a fresh subagent that gets the previous stage's output:
+
+```
+Make bill.py correct and robust. #>Test>Review>Code*3
+```
+
+| Token                 | Meaning                                                                 |
+|-----------------------|-------------------------------------------------------------------------|
+| `#>Test>Review>Code`  | Run Test, then Review, then Code, once. A stage is a comma list of tags (`Review,challenge`), a `#:` agent name, or a group (`r1+r2`) |
+| `#>…*3`               | Loop back to the first stage. With a `#triage` stage (Review has it), `*3` means at most 3 runs of that stage, and its last run ends the pipeline; without one, at most 3 rounds. `*` alone is `*3` |
+
+A `#:` name used as a stage wins over a behavior of the same name. A group stage spawns its agents in parallel and merges them by the `#::` token over the same agents (default `#all`); the merge is all the next stage sees:
+
+```
+#:r1:Review,challenge #:r2:Review,steel-man #::r1+r2:all #>Test>r1+r2>Code*
+```
+
+Pick the group's combinator for the stage after it: `#diff` keeps only disagreements, so findings both reviewers agree on reach Code as bare names, without locations. `#all` keeps them whole.
+
+- **Pauses and stops come from `#triage`.** When a `#triage` stage reports a blocking finding, the pipeline stops before the next stage and asks you which to fix; non-blocking findings pass on as accepted. A clean report from the first `#triage` stage ends the pipeline early. The last stage never asks: it ends with a report. A pipeline with no `#triage` stage never pauses.
+- **One-shot, one per prompt.** The token applies to its own prompt and is never stored. A second `#>` token is ignored, with a warning. With a `#>` token in the prompt, `#:` and `#::` tokens only define its stages: agents it doesn't name are ignored, with a warning, and no `<subagents>` block is injected.
+- **Refused whole.** A stage with no known behavior, a group member with none (group members need tags, unlike plain `#:` agents), or `*N` outside 1–999, drops the pipeline with a warning naming why, rather than running it with a hole.
+- **The main agent relays.** As with subagents, nothing but the model enforces order and copying. Through a prototype of this hook in Claude Code, opus and sonnet ran every stage in order with its text exact (14 of 14 spawns across three models), passed 80–93% of each stage's output on verbatim, paused at Review and ended on the last Review with a report (`ai/spike/pipeline-hook-e2e.finding.md`). Haiku kept order and stage text but paused at Test under an earlier wording that let any stage pause. Through this hook, all three models (opus, sonnet, haiku) ran it as written: 15 of 15 spawns in order with exact text, 81–94% of each output passed on, all paused at Review and ended on the last Review (`tests/dogfood/pipelines/KEY.md`). One run per model, fresh sessions only.
+- `#CLEAR` cannot be combined with a `#>` token. `#EXPLAIN` explains the pipeline.
+
 ### Methodology composition
 
 Modes define the interaction loop. Behaviors fill in the methodology. The same mode with different behaviors produces different approaches:
@@ -358,6 +385,7 @@ See the output-examples folder for generated python snake games with various fra
 6. Injects the content as ephemeral additional context
 7. The LLM follows the directives until the next prompt with hashtags replaces them
 8. `#:agent:tag` and `#::a+b:tag` tokens, if any, add a `<subagents>` block after it: each agent's own injection, and the combine step's behaviors (see [Subagents](#subagents))
+9. A `#>a>b` token instead adds a `<pipeline>` block: the stage order, loop and pause rules, and each stage's own injection (see [Pipelines](#pipelines))
 
 ## Clojure API
 

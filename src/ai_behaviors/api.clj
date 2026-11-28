@@ -93,7 +93,8 @@
 (defn behaviors
   "Just the behavior text for `prompt`'s hashtags — the operating mode,
   modifiers and framework blocks, then the <subagents> block for its `#:a:tag`
-  and `#::a+b:tag` tokens — or nil when it names none.
+  and `#::a+b:tag` tokens or the <pipeline> block for its `#>a>b` token — or
+  nil when it names none.
 
   Use this when you want the behaviors as a system message and the prompt as a
   user message. Unknown hashtags are ignored; check `report` to see them.
@@ -117,14 +118,19 @@
 (defn report
   "What `prompt` resolves to, for tooling and debugging:
   {:tags [...] :leaves [...] :missing [...] :mode \"#=code\" :modifiers [...]
-   :composites [...] :subagents {...} :subagents-missing [...] :behaviors \"...\"}.
-  :subagents is `parse-subagents`' result, nil without agent tokens."
+   :composites [...] :subagents {...} :subagents-missing [...]
+   :pipeline {...} :pipeline-missing [...] :pipeline-problem \"...\" :behaviors \"...\"}.
+  :subagents is `parse-subagents`' result, nil without agent tokens or with a
+  pipeline token; :pipeline is `parse-pipeline`'s, nil without one, and
+  :pipeline-problem says why it was refused, nil when it wasn't."
   ([prompt] (report prompt {}))
   ([prompt ctx-or-overrides]
    (let [ctx (->context ctx-or-overrides)
          tags (core/parse-hashtags prompt)
          expansion (core/expand-tags ctx tags)
-         subagents (core/parse-subagents prompt)]
+         pipeline (core/parse-pipeline prompt)
+         pipeline-ctx (core/pipeline-context ctx pipeline)
+         subagents (when-not pipeline (core/parse-subagents prompt))]
      {:tags tags
       :leaves (:leaves expansion)
       :missing (:missing expansion)
@@ -133,6 +139,9 @@
       :composites (vec (keys (:customs expansion)))
       :subagents subagents
       :subagents-missing (:missing (core/subagents-context ctx subagents) [])
+      :pipeline pipeline
+      :pipeline-missing (:missing pipeline-ctx [])
+      :pipeline-problem (:problem pipeline-ctx)
       :behaviors (core/prompt-injection ctx prompt)})))
 
 (defn explain
@@ -143,9 +152,9 @@
   ([prompt ctx-or-overrides]
    (let [ctx (->context ctx-or-overrides)
          tags (core/parse-hashtags prompt)
-         subagents (:text (core/subagents-context ctx (core/parse-subagents prompt)))]
-     (when (or (seq tags) subagents)
-       (core/explain-context ctx tags subagents)))))
+         orchestration (core/orchestration-context ctx prompt)]
+     (when (or (seq tags) (:text orchestration))
+       (core/explain-context ctx tags orchestration)))))
 
 (comment
   (augment "fix the login bug #=code #deep")

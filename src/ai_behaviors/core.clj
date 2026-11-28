@@ -27,7 +27,7 @@
        "HARD CONSTRAINTs define what the current mode IS, not what it chooses — they are not instructions that can be overridden. " bypass-instruction "\n"
        marking-instruction "\n"
        "⊣ {#Code} means: suggest #Code to the user. Only the user switches modes — never self-transition.\n"
-       "The above operating-mode, behavior-modifiers, and framework apply to all responses until superseded. When new blocks appear, only the most recent set applies; blocks inside <subagents> are never part of it. During compaction, preserve the most recent <operating-mode>, <behavior-modifiers>, and <framework> blocks outside <subagents> verbatim. Discard all older ones.\n"
+       "The above operating-mode, behavior-modifiers, and framework apply to all responses until superseded. When new blocks appear, only the most recent set applies; blocks inside <subagents> or <pipeline> are never part of it. During compaction, preserve the most recent <operating-mode>, <behavior-modifiers>, and <framework> blocks outside <subagents> and <pipeline> verbatim. Discard all older ones.\n"
        "</framework>"))
 
 (def explain-instruction-body
@@ -44,6 +44,9 @@
 
 (def subagents-explain-instruction
   "If an <explain-subagents> section is present, also explain what each agent's behaviors make it do, and what the combine step does with their outputs.")
+
+(def pipeline-explain-instruction
+  "If an <explain-pipeline> section is present, also explain the order of its stages, what each stage's behaviors make it do, what passes from one stage to the next, when it loops and stops, and when it pauses for the user.")
 
 (def dropped-instruction
   "If a <dropped-by-mode-resolution> section is present, explain which behaviors were dropped and why (last operating mode wins) before analyzing the surviving set.")
@@ -177,6 +180,15 @@
   [s]
   (vec (for [t (str/split s #",") :when (not (str/blank? t))] (str "#" t))))
 
+(defn- agent-token-tags
+  "Agent tokens (`agent-token-pattern` matches) -> {name [#tag ...]}, repeated
+  tokens for one name accumulating in order. Tags may repeat; callers dedupe."
+  [agent-tokens]
+  (reduce (fn [m [_ name tags]]
+            (update m name (fnil into []) (comma-tags tags)))
+          {}
+          agent-tokens))
+
 (defn parse-subagents
   "Agent and combinator tokens in `prompt`, or nil when it has none:
 
@@ -194,10 +206,7 @@
   [prompt]
   (let [prompt (or prompt "")
         agent-tokens (re-seq agent-token-pattern prompt)
-        agent-tags (reduce (fn [m [_ name tags]]
-                             (update m name (fnil into []) (comma-tags tags)))
-                           {}
-                           agent-tokens)
+        agent-tags (agent-token-tags agent-tokens)
         {:keys [combine ignored]}
         (reduce (fn [acc [_ token names tags]]
                   (let [names (vec (distinct (str/split names #"\+")))
@@ -223,6 +232,90 @@
                   {:agents (vec names) :tags ["#all"]})
        :ignored ignored
        :ungrouped (vec (remove grouped? all-names))})))
+
+;; --- Pipeline tokens --------------------------------------------------------
+;; `#>A>B>C*N` runs stages A, B and C in order, each a fresh subagent fed the
+;; previous stage's output; `*N` loops (see `pipeline-context`). One-shot like
+;; the subagent tokens: `#>` never matches `hashtag-pattern`. With a `#>` token
+;; in the prompt, `#:` and `#::` tokens only define its stages.
+
+(def pipeline-token-pattern
+  #"(?m)(?:^|\s)(#>([=a-zA-Z0-9_,+>-]+)(\*(\d*))?)")
+
+(def default-pipeline-cap
+  "Checker runs (or rounds, with no checker) that `*` alone allows."
+  3)
+
+(def max-pipeline-cap 999)
+
+(defn- group-key
+  "a+b+a -> [\"a\" \"b\"]: a group's agent names, deduplicated, in order."
+  [names]
+  (vec (distinct (remove str/blank? (str/split names #"\+")))))
+
+(defn parse-pipeline
+  "The first `#>` token in `prompt`, or nil when it has none:
+
+    {:token  \"#>Test>r1+r2>Code*2\"
+     :stages [{:label \"Test\" :kind :tags :tags [\"#Test\"]}
+              {:label \"r1+r2\" :kind :group :merge-tags [\"#diff\"]
+               :agents [{:name \"r1\" :tags [...]} {:name \"r2\" :tags [...]}]}
+              {:label \"Code\" :kind :tags :tags [\"#Code\"]}]
+     :cap 2                     ; nil: one pass; `*` alone: default-pipeline-cap;
+                                ; `pipeline-context` refuses one outside 1..max-pipeline-cap
+     :ignored [\"#>…\"]          ; later pipeline tokens: one pipeline per prompt
+     :unused-agents [\"x\"]      ; `#:` agents no stage names
+     :unused-groups [\"#::…\"]}  ; `#::` tokens over a set no group stage has
+
+  A stage equal to a `#:` name is that agent. A stage with `+` is a group of
+  agents, tagless when they have no `#:` token, merged by the tags of every
+  `#::` token over the same agent set, else `#all`. Anything else is a comma
+  list of tags."
+  [prompt]
+  (let [prompt (or prompt "")
+        [first-match & later] (re-seq pipeline-token-pattern prompt)]
+    (when first-match
+      (let [[_ token stage-specs star digits] first-match
+            agent-tokens (re-seq agent-token-pattern prompt)
+            agent-tags (agent-token-tags agent-tokens)
+            agent-names (distinct (map second agent-tokens))
+            combinators (for [[_ tok names tags] (re-seq combinator-token-pattern prompt)]
+                          {:token tok :key (set (group-key names)) :tags (comma-tags tags)})
+            agent-of (fn [name] {:name name :tags (vec (distinct (get agent-tags name [])))})
+            stages (vec (for [spec (str/split stage-specs #">")
+                              :when (not (str/blank? spec))]
+                          (cond
+                            (str/includes? spec "+")
+                            (let [names (group-key spec)
+                                  merge-tags (into [] (comp (filter #(= (set names) (:key %)))
+                                                            (mapcat :tags))
+                                                   combinators)]
+                              {:label spec :kind :group
+                               :agents (mapv agent-of names)
+                               :merge-tags (if (seq merge-tags) (vec (distinct merge-tags)) ["#all"])})
+
+                            (contains? agent-tags spec)
+                            (assoc (agent-of spec) :label spec :kind :agent)
+
+                            :else
+                            {:label spec :kind :tags :tags (vec (distinct (comma-tags spec)))})))
+            staged-names (set (for [{:keys [kind name agents]} stages
+                                    n (case kind :agent [name] :group (map :name agents) [])]
+                                n))
+            group-keys (set (for [{:keys [kind agents]} stages :when (= kind :group)]
+                              (set (map :name agents))))]
+        {:token token
+         :stages stages
+         :cap (when star
+                (cond (str/blank? digits) default-pipeline-cap
+                      ;; past max-pipeline-cap either way; avoids parse-long overflow
+                      (> (count digits) 3) (inc max-pipeline-cap)
+                      :else (parse-long digits)))
+         :ignored (mapv second later)
+         :unused-agents (vec (remove staged-names agent-names))
+         :unused-groups (vec (for [{:keys [token key]} combinators
+                                   :when (not (contains? group-keys key))]
+                               token))}))))
 
 ;; --- Expansion --------------------------------------------------------------
 
@@ -484,15 +577,137 @@
                              (concat subagents-instruction agent-sections [combine-section]))
        :missing (vec missing)})))
 
+(def pipeline-instruction
+  ["For this prompt only: run the stages below in order, each as a fresh subagent, one at a time: start a stage only after the previous one has returned. A later prompt runs a pipeline only through its own #> token."
+   "Each spawn prompt starts with that stage's text between <stage> and </stage>, copied character for character, then this prompt's task, then the previous stage's full output under \"Previous stage output:\", copied character for character, never a summary. Wait for each subagent's full result before going on."])
+
+(def pipeline-group-instruction
+  "A group stage spawns each of its agents as a fresh subagent, in parallel; each spawn prompt starts with that agent's text between <agent> and </agent>, copied character for character, then this prompt's task, then the previous stage's full output under \"Previous stage output:\", copied character for character, never a summary. After every agent has returned, merge their outputs following the text in <combine>; that merge is the stage's output.")
+
+(def pipeline-ownership-instruction
+  "The blocks inside <stage> are not yours: they don't replace your own operating mode, modifiers or framework.")
+
+(def pipeline-combine-instruction
+  "The text below applies to that merge only; your own mode and modifiers govern everything else.")
+
+(def checker-tag
+  "The behavior whose blocking labels stop a pipeline's loop and pause it."
+  "#triage")
+
+(defn- pipeline-loop-line
+  "How the pipeline repeats and stops, or nil for one pass with no checker.
+  `checker` is [n label] of the first stage carrying `checker-tag`, or nil."
+  [cap [n label :as checker]]
+  (let [stage (str "stage " n " (" label ")")
+        round-line "Before each round, write \"Round\" and its number."]
+    (cond
+      (and cap checker)
+      (str "Loop: after the last stage, start again from the first. Stage " n " (" label ")"
+           " runs at most " cap " times; its run number " cap " is the last stage of the pipeline. "
+           "Stop earlier when " stage " reports no blocking findings. " round-line)
+
+      cap
+      (str "Loop: after the last stage, start again from the first, for at most " cap " rounds. " round-line)
+
+      checker
+      (str "Stop early when " stage " reports no blocking findings."))))
+
+(defn- pipeline-decision-line
+  [checker]
+  (if checker
+    (str "Decisions: non-blocking findings go to the next stage as accepted. "
+         "If a stage carrying " checker-tag " reports a blocking finding, stop before the next stage, list the blocking findings, and ask the user which to fix; "
+         "after the user answers, continue with the next stage, passing their answer along. "
+         "Exception: when the pipeline's last stage reports blocking findings, do not ask; end the pipeline with a report of them.")
+    "Decisions: each stage's findings go to the next stage as accepted; do not pause for the user."))
+
+(defn pipeline-context
+  "The <pipeline> block for `pipeline` (from `parse-pipeline`), or nil.
+  Returns {:text … :missing [\"stage1:#nope\" \"r1:#x\" \"stage2:combine:#y\"]
+           :problem \"stage 2's agent r2 has no known behavior\"}; with a :problem, :text
+  is nil: the pipeline is refused whole rather than run with a hole in it.
+
+  A single stage's text is its tags' full injection, framework included, as a
+  subagent's is; a group stage holds an <agent> per member and a <combine>
+  with behavior blocks only. The checker is the first stage with a member
+  carrying `checker-tag`: it counts the loop's runs and stops it when clean.
+  Every stage carrying `checker-tag` may pause for the user."
+  [ctx {:keys [stages cap] :as pipeline}]
+  (when pipeline
+    (let [expanded (vec (map-indexed
+                         (fn [i {:keys [kind tags agents merge-tags] :as stage}]
+                           (assoc stage :n (inc i)
+                                  :units (if (= kind :group)
+                                           (vec (for [{:keys [name tags]} agents]
+                                                  [name (expand-tags ctx tags)]))
+                                           [[nil (expand-tags ctx tags)]])
+                                  :merge-exp (when (= kind :group) (expand-tags ctx merge-tags))))
+                         stages))
+          missing (vec (for [{:keys [n kind units merge-exp]} expanded
+                             tag-ref (concat (for [[name exp] units, tag (:missing exp)]
+                                               (str (if (= kind :group) name (str "stage" n)) ":" tag))
+                                             (for [tag (:missing merge-exp)]
+                                               (str "stage" n ":combine:" tag)))]
+                         tag-ref))
+          ;; "stage 2", or "stage 2's agent r2" inside a group: what to name
+          ;; when refusing for want of a known behavior
+          empty-unit (first (for [{:keys [n kind units]} expanded
+                                  [name exp] units
+                                  :when (empty? (:leaves exp))]
+                              (if (= kind :group) (str "stage " n "'s agent " name) (str "stage " n))))
+          problem (cond
+                    (and cap (not (<= 1 cap max-pipeline-cap)))
+                    (str "*N needs N from 1 to " max-pipeline-cap)
+
+                    (empty? stages) "it has no stages"
+
+                    empty-unit (str empty-unit " has no known behavior"))
+          checker (first (for [{:keys [n label units]} expanded
+                               :when (some (fn [[_ exp]] (some #{checker-tag} (:leaves exp))) units)]
+                           [n label]))
+          stage-section (fn [{:keys [n label kind units merge-exp agents]}]
+                          (tagged-section
+                           (str "<stage n=\"" n "\" name=\"" label "\">") "</stage>"
+                           (if (= kind :group)
+                             (concat (for [[name exp] units]
+                                       (tagged-section (str "<agent name=\"" name "\">") "</agent>"
+                                                       [(injection-context ctx exp)]))
+                                     [(tagged-section
+                                       (str "<combine agents=\"" (str/join " " (map :name agents)) "\">")
+                                       "</combine>"
+                                       [pipeline-combine-instruction (behavior-blocks ctx merge-exp)])])
+                             [(injection-context ctx (second (first units)))])))]
+      {:text (when-not problem
+               (tagged-section "<pipeline>" "</pipeline>"
+                               (concat pipeline-instruction
+                                       (when (some #(= :group (:kind %)) stages) [pipeline-group-instruction])
+                                       [(pipeline-loop-line cap checker)
+                                        (pipeline-decision-line checker)
+                                        pipeline-ownership-instruction]
+                                       (map stage-section expanded))))
+       :missing missing
+       :problem problem})))
+
+(defn orchestration-context
+  "The one-shot block `prompt`'s tokens ask for, tagged with its kind, or nil:
+  a `#>` token makes it the pipeline ({:kind :pipeline}, see `pipeline-context`);
+  otherwise `#:`/`#::` tokens make it the subagents ({:kind :subagents}, see
+  `subagents-context`). A refused pipeline still claims the prompt: its :text
+  is nil and no subagents run."
+  [ctx prompt]
+  (if-let [pipeline (parse-pipeline prompt)]
+    (assoc (pipeline-context ctx pipeline) :kind :pipeline)
+    (some-> (subagents-context ctx (parse-subagents prompt)) (assoc :kind :subagents))))
+
 (defn prompt-injection
-  "The first-turn injection for `prompt`: its hashtags' injection, then the
-  <subagents> block, joined by a newline. nil when there is neither.
-  No session state: a prompt with no hashtags injects only its subagents."
+  "The first-turn injection for `prompt`: its hashtags' injection, then its
+  <subagents> or <pipeline> block, joined by a newline. nil when there is
+  neither. No session state: a prompt with no hashtags injects only its block."
   [ctx prompt]
   (let [tags (parse-hashtags prompt)
         main (when (seq tags) (injection-context ctx (expand-tags ctx tags)))
-        subagents (:text (subagents-context ctx (parse-subagents prompt)))]
-    (some->> (remove nil? [main subagents]) seq (str/join "\n"))))
+        orchestration (:text (orchestration-context ctx prompt))]
+    (some->> (remove nil? [main orchestration]) seq (str/join "\n"))))
 
 (defn- behavior-block
   [name role text]
@@ -500,13 +715,15 @@
 
 (defn explain-context
   "What `tags` would do, rather than the instruction to do it: expansion trees,
-  what mode resolution
-  dropped, and the behavior texts to analyse. `subagents` is a <subagents>
-  block (`subagents-context`'s :text) to explain alongside, or nil. Returns nil
-  when there is nothing to explain."
+  what mode resolution dropped, and the behavior texts to analyse.
+  `orchestration` is `orchestration-context`'s result, whose block is explained
+  alongside, or nil. Returns nil when there is nothing to explain."
   ([ctx tags] (explain-context ctx tags nil))
-  ([ctx tags subagents]
+  ([ctx tags {block :text kind :kind :as _orchestration}]
    (let [tags (if (string? tags) (split-tags tags) tags)
+         [block-instruction block-section] (case kind
+                                             :pipeline [pipeline-explain-instruction "explain-pipeline"]
+                                             [subagents-explain-instruction "explain-subagents"])
          {:keys [customs] :as expansion} (expand-tags ctx tags)
          mode-tag (mode-of expansion)
          ;; A composite that carries a losing mode is dropped whole, so its tree
@@ -549,16 +766,16 @@
                                 (str/join (map #(str % "\n") dropped))
                                 "</dropped-by-mode-resolution>\n"))
          main? (or (seq content) tree-section)]
-     (when (or main? subagents)
+     (when (or main? block)
        (str "<explain-instruction>\n"
             (str/join "\n" explain-instruction-body)
             (when dropped-section (str "\n" dropped-instruction))
-            (when subagents (str "\n" subagents-explain-instruction))
+            (when block (str "\n" block-instruction))
             "\n\n"
             (str/join "\n" explain-sections)
             "\n</explain-instruction>\n"
             tree-section
             dropped-section
             (when main? (str "<explain-behaviors>\n" content "\n</explain-behaviors>"))
-            (when subagents
-              (str (when main? "\n") "<explain-subagents>\n" subagents "\n</explain-subagents>")))))))
+            (when block
+              (str (when main? "\n") "<" block-section ">\n" block "\n</" block-section ">")))))))
