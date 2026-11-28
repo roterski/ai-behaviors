@@ -29,7 +29,25 @@
    "#statecharts" "#=tour #statecharts #html" "#EXPLAIN #statecharts"
    "#decision-ready" "#Design #html #decision-ready" "#=research #decision-ready" "#EXPLAIN #decision-ready"
    "#=review #decision-ready" "#=test #html #decision-ready"
-   "#offline" "#Design #html #offline" "#EXPLAIN #offline"])
+   "#offline" "#Design #html #offline" "#EXPLAIN #offline"
+   ;; subagents: #:NAME:TAGS and #::A+B:TAGS
+   "#:a:challenge" "#:a:challenge #:a:deep" "#:a:challenge,deep" "#:a:Research"
+   "#:a:=frame,=code" "#:a:nope,challenge" "#:a:Route"
+   "#Design #:a:challenge #:b:steel-man #::a+b:diff"
+   "#:a:challenge #::a+b:diff" "#::a+b:diff" "#::a+b:diff,deep #::b+a:steel-man"
+   "#:a:challenge #::a+b:diff #::c:all" "#:a:challenge #::a:Converge" "#:a:x #::a:nope"
+   "x#:a:challenge https://x.com#:a:deep" "#:a:challenge\n#::a:first"
+   "#EXPLAIN #:a:challenge" "#EXPLAIN #Spike #:a:challenge #::a:diff"
+   "#:a:challenge #:b:steel-man #::a:diff" "#:b:steel-man #::a:diff"
+   ;; pipelines: #>A>B*N
+   "#>Test>Review>Code" "#>Test>Review>Code*" "#>Test>Review>Code*2" "#>Code>Test*3"
+   "#>Review,challenge>Code" "#:Review:Code #>Test>Review" "#Code #>Test>Review*2"
+   "#:r1:Review,challenge #:r2:Review,steel-man #::r1+r2:diff #>Test>r1+r2>Code*"
+   "#:r1:challenge #:r2:steel-man #>Test>r1+r2" "#:r1:Review,nope #:r2:Code #::r1+r2:zz #>Test,qq>r1+r2"
+   "#>Test>Review #>Code" "#:x:deep #::y+z:all #>Test>Review" "#:a:challenge #>Test"
+   "#>Test>nope" "#>Test>a+b" "#:r1:challenge #>Test>r1+r2" "#>Test*0" "#>Test*1000" "#>>" "x#>Test https://x.com#>Test"
+   "#>Test>Review\n#>Code" "#EXPLAIN #>Test>Review*2" "#EXPLAIN #Spike #>Test>r1+r2"
+   "#EXPLAIN #>Test>nope"])
 
 (defn- hook-context
   "additionalContext from hook `script` fed `payload`, with a fresh HOME and XDG dir."
@@ -50,8 +68,8 @@
 (defn- core-context [ctx prompt]
   (let [tags (core/parse-hashtags prompt)]
     (if (some #{"#EXPLAIN"} tags)
-      (core/explain-context ctx (remove #{"#EXPLAIN"} tags))
-      (core/injection-context ctx (core/expand-tags ctx tags)))))
+      (core/explain-context ctx (remove #{"#EXPLAIN"} tags) (core/orchestration-context ctx prompt))
+      (core/prompt-injection ctx prompt))))
 
 (deftest first-turn-parity-test
   (is (and (fs/which "bash") (fs/which "jq")) "bash and jq are on PATH")

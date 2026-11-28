@@ -1257,6 +1257,158 @@ assert_contains "$OUT" "#=tour — Build the user's mental model of existing cod
   assert_contains "$OUT" "#zoom — Coarse to fine." && \
   assert_contains "$OUT" "#delta — Explain a change as the difference it makes." && pass
 
+# === Subagents ===
+
+echo ""
+echo "Subagents:"
+
+run_test "agent_token_gets_its_own_block"
+OUT=$(invoke "#:a:challenge" | context_of)
+assert_contains "$OUT" "<subagents>" && \
+  assert_contains "$OUT" "<agent name=\"a\">" && \
+  assert_contains "$OUT" "# #challenge — Challenge" && \
+  assert_contains "$OUT" "<combine agents=\"a\">" && \
+  assert_contains "$OUT" "# #all — All" && \
+  assert_eq "${OUT%%<subagents>*}" "" && pass
+
+run_test "repeat_and_comma_forms_are_equal"
+A=$(invoke "#:a:challenge #:a:deep" | context_of)
+reset_state
+B=$(invoke "#:a:challenge,deep" | context_of)
+assert_eq "$A" "$B" && assert_contains "$A" "# #deep — Deep" && pass
+
+run_test "agent_tokens_never_enter_state"
+invoke "#=design #concise" > /dev/null
+BEFORE=$(cat "$TEST_HOME/.claude/behaviors-state/test-session")
+OUT=$(invoke "#:a:challenge #::a+b:diff" | context_of)
+AFTER=$(cat "$TEST_HOME/.claude/behaviors-state/test-session")
+assert_eq "$AFTER" "$BEFORE" && \
+  assert_contains "$OUT" "Active: #=design #concise." && \
+  assert_contains "$OUT" "</subagents>" && pass
+
+run_test "main_tags_and_agents_stay_isolated"
+OUT=$(invoke "#Design #:a:challenge" | context_of)
+AGENT=$(sed -n '/<agent name="a">/,/<\/agent>/p' <<< "$OUT")
+assert_contains "$AGENT" "# #challenge — Challenge" && \
+  assert_not_contains "$AGENT" "# #=design" && \
+  assert_contains "$(cat "$TEST_HOME/.claude/behaviors-state/test-session")" "#=design" && \
+  assert_not_contains "$(cat "$TEST_HOME/.claude/behaviors-state/test-session")" "#challenge" && pass
+
+run_test "combinator_names_an_untagged_agent"
+OUT=$(invoke "#:a:challenge #::a+b:diff" | context_of)
+assert_contains "$OUT" "<agent name=\"b\">
+</agent>" && assert_contains "$OUT" "<combine agents=\"a b\">" && pass
+
+run_test "one_combine_group_per_prompt"
+OUT=$(invoke "#:a:challenge #::a+b:diff #::b+a:deep #::c:all" | context_of)
+ERR=$(cat "$STDERR_FILE")
+assert_contains "$OUT" "# #deep — Deep" && \
+  assert_not_contains "$OUT" "<agent name=\"c\">" && \
+  assert_contains "$ERR" "Ignored #::c:all: one combine group per prompt" && pass
+
+run_test "tagged_agent_outside_group_is_not_spawned"
+OUT=$(invoke "#:a:challenge #:b:steel-man #::a:diff" | context_of)
+assert_not_contains "$OUT" "<agent name=\"b\">" && \
+  assert_contains "$OUT" "<agent name=\"a\">" && \
+  assert_contains "$(cat "$STDERR_FILE")" "Ignored agent b: not in the combine group" && pass
+
+run_test "framework_excludes_nested_blocks"
+OUT=$(invoke "#=code #:a:=frame" | context_of)
+assert_contains "$OUT" "blocks inside <subagents> or <pipeline> are never part of it" && \
+  assert_contains "$OUT" "For this prompt only: spawn each agent below" && pass
+
+run_test "unknown_agent_tags_reported_with_agent_name"
+invoke "#:a:nope #::a:zz" > /dev/null
+assert_contains "$(cat "$STDERR_FILE")" "Unknown behaviors: a:#nope combine:#zz" && pass
+
+run_test "url_and_glued_tokens_are_inert"
+OUT=$(invoke "see https://x.com#:a:challenge and x#::a:diff" | context_of)
+assert_empty "$OUT"
+
+run_test "clear_with_agent_token_conflicts"
+invoke "#CLEAR #:a:challenge" > /dev/null && RC=0 || RC=$?
+assert_eq "$RC" "2" && assert_contains "$(cat "$STDERR_FILE")" "Conflict" && pass
+
+run_test "explain_covers_agents_without_state"
+OUT=$(invoke "#EXPLAIN #:a:challenge" | context_of)
+assert_contains "$OUT" "<explain-subagents>" && \
+  assert_contains "$OUT" "If an <explain-subagents> section is present" && \
+  assert_not_contains "$OUT" "<explain-behaviors>" && pass
+
+# === Pipelines ===
+
+echo ""
+echo "Pipelines:"
+
+run_test "pipeline_token_renders_stages_in_order"
+OUT=$(invoke "#>Test>Review>Code*2 fix it" | context_of)
+assert_contains "$OUT" "<pipeline>" && \
+  assert_contains "$OUT" "<stage n=\"1\" name=\"Test\">" && \
+  assert_contains "$OUT" "<stage n=\"3\" name=\"Code\">" && \
+  assert_contains "$OUT" "Stage 2 (Review) runs at most 2 times" && \
+  assert_contains "$OUT" "If a stage carrying #triage reports a blocking finding" && \
+  assert_eq "${OUT%%<pipeline>*}" "" && pass
+
+run_test "pipeline_without_checker_counts_rounds"
+OUT=$(invoke "#>Code>Test*" | context_of)
+assert_contains "$OUT" "for at most 3 rounds" && \
+  assert_contains "$OUT" "do not pause for the user" && \
+  assert_not_contains "$OUT" "carrying #triage" && pass
+
+run_test "pipeline_tokens_never_enter_state"
+invoke "#=design #concise" > /dev/null
+BEFORE=$(cat "$TEST_HOME/.claude/behaviors-state/test-session")
+OUT=$(invoke "#>Test>Review" | context_of)
+AFTER=$(cat "$TEST_HOME/.claude/behaviors-state/test-session")
+assert_eq "$AFTER" "$BEFORE" && \
+  assert_contains "$OUT" "Active: #=design #concise." && \
+  assert_contains "$OUT" "</pipeline>" && pass
+
+run_test "pipeline_claims_agents_as_stages"
+OUT=$(invoke "#:r1:Review,challenge #:r2:Review #:x:deep #::r1+r2:diff #::y+z:all #>Test>r1+r2" | context_of)
+ERR=$(cat "$STDERR_FILE")
+assert_not_contains "$OUT" "spawn each agent below as a subagent" && \
+  assert_contains "$OUT" "<combine agents=\"r1 r2\">" && \
+  assert_contains "$OUT" "# #diff — Diff" && \
+  assert_contains "$ERR" "Ignored agent x: not in the pipeline" && \
+  assert_contains "$ERR" "Ignored #::y+z:all: not in the pipeline" && pass
+
+run_test "one_pipeline_per_prompt"
+OUT=$(invoke "#>Test>Review #>Code" | context_of)
+assert_not_contains "$OUT" "name=\"Code\"" && \
+  assert_contains "$(cat "$STDERR_FILE")" "Ignored #>Code: one pipeline per prompt" && pass
+
+run_test "pipeline_with_unknown_stage_is_refused"
+OUT=$(invoke "#:a:challenge #>Test>nope" | context_of)
+ERR=$(cat "$STDERR_FILE")
+assert_eq "$OUT" "" && \
+  assert_contains "$ERR" "Ignored #>Test>nope: stage 2 has no known behavior" && \
+  assert_contains "$ERR" "Unknown behaviors: stage2:#nope" && pass
+
+run_test "pipeline_with_untagged_group_member_names_it"
+OUT=$(invoke "#:r1:challenge #>Test>r1+r2" | context_of)
+assert_eq "$OUT" "" && \
+  assert_contains "$(cat "$STDERR_FILE")" "Ignored #>Test>r1+r2: stage 2's agent r2 has no known behavior" && pass
+
+run_test "pipeline_cap_out_of_range_is_refused"
+OUT=$(invoke "#>Test*0" | context_of)
+assert_eq "$OUT" "" && \
+  assert_contains "$(cat "$STDERR_FILE")" "*N needs N from 1 to 999" && pass
+
+run_test "framework_excludes_pipeline_blocks"
+OUT=$(invoke "#=code #>Test" | context_of)
+assert_contains "$OUT" "blocks inside <subagents> or <pipeline> are never part of it" && pass
+
+run_test "clear_with_pipeline_token_conflicts"
+invoke "#CLEAR #>Test>nope" > /dev/null && RC=0 || RC=$?
+assert_eq "$RC" "2" && assert_contains "$(cat "$STDERR_FILE")" "Conflict" && pass
+
+run_test "explain_covers_pipeline_without_state"
+OUT=$(invoke "#EXPLAIN #>Test>Review*2" | context_of)
+assert_contains "$OUT" "<explain-pipeline>" && \
+  assert_contains "$OUT" "If an <explain-pipeline> section is present" && \
+  assert_not_contains "$OUT" "<explain-behaviors>" && pass
+
 # === Summary ===
 
 echo ""

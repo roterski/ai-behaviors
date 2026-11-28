@@ -92,7 +92,9 @@
 
 (defn behaviors
   "Just the behavior text for `prompt`'s hashtags — the operating mode,
-  modifiers and framework blocks — or nil when it names none.
+  modifiers and framework blocks, then the <subagents> block for its `#:a:tag`
+  and `#::a+b:tag` tokens or the <pipeline> block for its `#>a>b` token — or
+  nil when it names none.
 
   Use this when you want the behaviors as a system message and the prompt as a
   user message. Unknown hashtags are ignored; check `report` to see them.
@@ -101,10 +103,7 @@
   with — as it is for `augment`, `report` and `explain`."
   ([prompt] (behaviors prompt {}))
   ([prompt ctx-or-overrides]
-   (let [ctx (->context ctx-or-overrides)
-         tags (core/parse-hashtags prompt)]
-     (when (seq tags)
-       (core/injection-context ctx (core/expand-tags ctx tags))))))
+   (core/prompt-injection (->context ctx-or-overrides) prompt)))
 
 (defn augment
   "`prompt` with its behaviors prepended, ready to send to a model.
@@ -119,19 +118,31 @@
 (defn report
   "What `prompt` resolves to, for tooling and debugging:
   {:tags [...] :leaves [...] :missing [...] :mode \"#=code\" :modifiers [...]
-   :composites [...] :behaviors \"...\"}."
+   :composites [...] :subagents {...} :subagents-missing [...]
+   :pipeline {...} :pipeline-missing [...] :pipeline-problem \"...\" :behaviors \"...\"}.
+  :subagents is `parse-subagents`' result, nil without agent tokens or with a
+  pipeline token; :pipeline is `parse-pipeline`'s, nil without one, and
+  :pipeline-problem says why it was refused, nil when it wasn't."
   ([prompt] (report prompt {}))
   ([prompt ctx-or-overrides]
    (let [ctx (->context ctx-or-overrides)
          tags (core/parse-hashtags prompt)
-         expansion (core/expand-tags ctx tags)]
+         expansion (core/expand-tags ctx tags)
+         pipeline (core/parse-pipeline prompt)
+         pipeline-ctx (core/pipeline-context ctx pipeline)
+         subagents (when-not pipeline (core/parse-subagents prompt))]
      {:tags tags
       :leaves (:leaves expansion)
       :missing (:missing expansion)
       :mode (core/mode-of expansion)
       :modifiers (core/modifiers-of expansion)
       :composites (vec (keys (:customs expansion)))
-      :behaviors (when (seq tags) (core/injection-context ctx expansion))})))
+      :subagents subagents
+      :subagents-missing (:missing (core/subagents-context ctx subagents) [])
+      :pipeline pipeline
+      :pipeline-missing (:missing pipeline-ctx [])
+      :pipeline-problem (:problem pipeline-ctx)
+      :behaviors (core/prompt-injection ctx prompt)})))
 
 (defn explain
   "What `prompt`'s hashtags would do, rather than the instruction to do it —
@@ -139,9 +150,11 @@
   nil when the prompt names no behaviors."
   ([prompt] (explain prompt {}))
   ([prompt ctx-or-overrides]
-   (let [tags (core/parse-hashtags prompt)]
-     (when (seq tags)
-       (core/explain-context (->context ctx-or-overrides) tags)))))
+   (let [ctx (->context ctx-or-overrides)
+         tags (core/parse-hashtags prompt)
+         orchestration (core/orchestration-context ctx prompt)]
+     (when (or (seq tags) (:text orchestration))
+       (core/explain-context ctx tags orchestration)))))
 
 (comment
   (augment "fix the login bug #=code #deep")
